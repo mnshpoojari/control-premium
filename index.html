@@ -2,128 +2,149 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Control Premium — Deal Intelligence</title>
+  <title>Control Premium — Private Markets Intelligence</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Institutional-grade intelligence on M&A, private equity, and control situations that reshape outcomes." />
+  <meta name="description" content="IC-style intelligence on M&A, private equity, and control situations that reshape outcomes." />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
   <style>
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: #f8fafc;
+      background: #ffffff;
       color: #0f172a;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     .container {
-      max-width: 720px;
+      max-width: 880px;
       margin: 0 auto;
-      padding: 80px 24px;
+      padding: 96px 24px;
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 24px;
     }
 
     h1 {
-      font-size: 48px;
-      line-height: 1.1;
-      margin-bottom: 24px;
+      font-family: "Playfair Display", serif;
+      font-size: 56px;
+      line-height: 1.05;
+      margin: 0 0 32px 0;
     }
 
     h1 span {
       font-style: italic;
-      color: #64748b;
+      color: #94a3b8;
     }
 
-    p {
+    .subhead {
       font-size: 18px;
       line-height: 1.6;
       color: #334155;
-      margin-bottom: 24px;
-    }
-
-    .tagline {
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      color: #64748b;
-      margin-bottom: 16px;
-      font-weight: 600;
+      max-width: 640px;
+      margin-bottom: 48px;
     }
 
     form {
       display: flex;
       gap: 12px;
-      margin-top: 32px;
+      max-width: 520px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
     }
 
     input[type="email"] {
       flex: 1;
-      padding: 16px;
+      padding: 16px 18px;
       font-size: 16px;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      border-radius: 0;
+      font-family: Inter, sans-serif;
+    }
+
+    input[type="email"]:focus {
+      outline: none;
+      border-color: #0f172a;
     }
 
     button {
       padding: 16px 28px;
-      background-color: #0f172a;
-      color: white;
-      font-size: 14px;
+      background: #0f172a;
+      color: #ffffff;
+      border: none;
+      font-size: 12px;
+      letter-spacing: 0.16em;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      border: none;
-      border-radius: 4px;
       cursor: pointer;
     }
 
     button:hover {
-      background-color: #020617;
+      background: #020617;
     }
 
     .note {
       font-size: 12px;
-      color: #64748b;
-      margin-top: 12px;
+      color: #94a3b8;
       font-style: italic;
+      margin-top: 8px;
     }
 
     .success {
       display: none;
       margin-top: 32px;
       padding: 24px;
-      background-color: #ecfeff;
-      border: 1px solid #67e8f9;
-      color: #0f172a;
-      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      max-width: 520px;
     }
 
     footer {
-      margin-top: 120px;
-      font-size: 12px;
-      color: #64748b;
+      margin-top: 140px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-top: 1px solid #e5e7eb;
-      padding-top: 24px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #94a3b8;
     }
 
-    footer span {
-      font-weight: 700;
-      letter-spacing: 0.15em;
+    footer .mark {
+      font-family: "Playfair Display", serif;
+      font-style: italic;
+      font-size: 18px;
+      color: #0f172a;
+      letter-spacing: normal;
+    }
+
+    footer a {
+      color: inherit;
+      text-decoration: none;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <div class="tagline">Institutional Intelligence</div>
+
+    <div class="eyebrow">Institutional Intelligence</div>
 
     <h1>Control <span>Premium</span></h1>
 
-    <p>
+    <p class="subhead">
       Deal intelligence on who’s buying, selling, and reshaping control.
-      Focused analysis of M&A, private equity, restructurings, divestitures,
-      and strategic reviews — written like an internal deal memo.
+      IC-style analysis of M&A, private equity, restructurings, divestitures,
+      and strategic reviews — distilled into what actually matters.
     </p>
 
     <form
@@ -147,17 +168,19 @@
     </div>
 
     <div id="successMessage" class="success">
-      <strong>You’re on the list.</strong><br />
-      Expect high-signal deal intelligence in your inbox.
+      <strong>You’re on the list!</strong>
     </div>
 
     <footer>
-      <span>CP</span>
-      <div>© 2026 Control Premium</div>
+      <div class="mark">CP</div>
+      <div>
+        © 2026 Control Premium ·
+        <a href="mailto:manishapoojari48@gmail.com">Contact</a>
+      </div>
     </footer>
+
   </div>
 
-  <!-- Hidden iframe to prevent redirect -->
   <iframe name="hidden_iframe" style="display:none;"></iframe>
 
   <script>
