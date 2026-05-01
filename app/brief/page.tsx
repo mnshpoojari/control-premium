@@ -29,15 +29,25 @@ function renderInline(text: string): React.ReactNode[] {
 }
 
 function BriefRenderer({ content }: { content: string }) {
+  const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+
+  // Pre-identify deal headlines: short plain lines that have a URL within 7 lines
+  const headlineIdx = new Set<number>()
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (/^\*\*[^*]+\*\*$/.test(line)) continue   // section header
+    if (/^https?:\/\//.test(line)) continue        // URL
+    if (line.startsWith('**')) continue            // inline bold (heatmap entries)
+    if (line.length > 130) continue               // too long — it's a paragraph
+    if (line.startsWith('So what')) continue       // analysis tag
+    for (let j = i + 1; j < Math.min(i + 7, lines.length); j++) {
+      if (/^https?:\/\//.test(lines[j])) { headlineIdx.add(i); break }
+    }
+  }
+
   const elements: React.ReactNode[] = []
-  let nextIsHeadline = false
-
-  content.split('\n').forEach((raw, i) => {
-    const line = raw.trim()
-    if (!line) return
-
+  lines.forEach((line, i) => {
     if (/^\*\*[^*]+\*\*$/.test(line)) {
-      nextIsHeadline = true
       elements.push(
         <h2 key={`h-${i}`} style={{ fontFamily: SERIF, color: C.text, fontSize: '1.15rem', fontWeight: 400, marginTop: '2.25rem', marginBottom: '0.6rem', letterSpacing: '-0.01em' }}>
           {line.slice(2, -2)}
@@ -47,7 +57,6 @@ function BriefRenderer({ content }: { content: string }) {
     }
 
     if (/^https?:\/\/\S+$/.test(line)) {
-      nextIsHeadline = false
       const domain = (() => { try { return new URL(line).hostname.replace('www.', '') } catch { return line } })()
       elements.push(
         <a key={`url-${i}`} href={line} target="_blank" rel="noopener noreferrer"
@@ -58,8 +67,7 @@ function BriefRenderer({ content }: { content: string }) {
       return
     }
 
-    if (nextIsHeadline) {
-      nextIsHeadline = false
+    if (headlineIdx.has(i)) {
       elements.push(
         <p key={`hl-${i}`} style={{ fontFamily: SANS, fontWeight: 700, fontSize: '1rem', color: C.text, marginBottom: '0.5rem', lineHeight: 1.4 }}>
           {line}
