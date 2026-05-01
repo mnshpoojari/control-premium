@@ -138,7 +138,7 @@ export default function BriefPage() {
 
         {brief && !loading && (
           <p className="mt-5 text-center text-xs" style={{ color: C.faint }}>
-            Published {formattedTime} · New brief every day at 8AM IST
+            Published {formattedTime}
           </p>
         )}
 
