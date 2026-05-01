@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/brief/generate",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/top-sectors/refresh",
+      "schedule": "35 2 * * *"
+    }
+  ]
+}

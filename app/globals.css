@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #FAF8F3;
+  color: #3B2F2F;
+  font-family: var(--font-sans), 'Instrument Sans', sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  font-family: inherit;
+}
