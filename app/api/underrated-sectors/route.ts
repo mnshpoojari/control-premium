@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -25,16 +27,15 @@ export async function GET() {
 
   const underrated = all
     .filter(s => !top3.has(s.sector))
-    .filter(s => s.count_30d >= 2 && s.count_90d > 0)
+    .filter(s => s.count_30d >= 1 && s.count_90d > 0)
     .map(s => {
-      // Daily rate last 30 days vs daily rate in days 31–90
       const prior60Count = s.count_90d - s.count_30d
       const recentRate = s.count_30d / 30
       const priorRate = prior60Count / 60
       const momentum = recentRate / Math.max(priorRate, 0.05)
       return { ...s, momentum }
     })
-    .filter(s => s.momentum >= 1.5)
+    .filter(s => s.momentum >= 1.2)
     .sort((a, b) => b.momentum - a.momentum)
     .slice(0, 3)
     .map(s => ({
