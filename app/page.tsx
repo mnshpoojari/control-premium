@@ -53,10 +53,10 @@ export default function HomePage() {
         <span style={{ fontFamily: SERIF, color: C.text, fontSize: '1.5rem' }}>Premia</span>
         <button
           onClick={() => router.push('/brief')}
-          className="text-sm font-medium transition-opacity hover:opacity-70 px-4 py-1.5 rounded-full"
-          style={{ color: C.text, border: `1px solid rgba(31,3,34,0.25)`, fontFamily: SANS }}
+          className="btn-glow text-sm font-semibold transition-opacity hover:opacity-90 px-4 py-1.5 rounded-full"
+          style={{ color: '#3B2F2F', backgroundColor: '#A3E635', border: 'none', fontFamily: SANS }}
         >
-          Intelligence Brief
+          Intelligence Brief of the day!
         </button>
       </header>
 
@@ -124,6 +124,8 @@ export default function HomePage() {
 
         </div>
       </main>
+
+      <SubscribeSection />
 
       <footer className="px-8 py-4 text-center" style={{ color: C.faint, fontSize: '0.75rem', fontFamily: SANS }}>
         Premia · Deal intelligence for deal professionals
@@ -221,5 +223,69 @@ function MomentumCard({ sector, count, momentum, onClick }: { sector: string; co
         </div>
       </div>
     </button>
+  )
+}
+
+function SubscribeSection() {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'exists' | 'error'>('idle')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setStatus('loading')
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await res.json()
+      if (data.message === 'already_subscribed') setStatus('exists')
+      else if (data.message === 'subscribed') setStatus('done')
+      else setStatus('error')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div className="w-full px-6 py-10">
+      <div className="max-w-2xl mx-auto rounded-2xl px-8 py-10 text-center" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
+        <p className="text-xs uppercase tracking-widest mb-3 font-semibold" style={{ color: C.muted }}>Intelligence Brief</p>
+        <h2 className="mb-3" style={{ fontFamily: SERIF, fontSize: '1.6rem', fontWeight: 400, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+          What moved in private markets today
+        </h2>
+        <p className="text-sm mb-7 mx-auto max-w-sm" style={{ color: C.muted, lineHeight: 1.7, fontWeight: 500 }}>
+          Every morning, Premia publishes a sharp briefing on confirmed transactions, situations developing, and what it means for where capital is moving. Free, no noise.
+        </p>
+        {status === 'done' ? (
+          <p className="text-sm font-semibold" style={{ color: '#4a6b1a' }}>You&apos;re in. See you tomorrow morning.</p>
+        ) : status === 'exists' ? (
+          <p className="text-sm font-medium" style={{ color: C.muted }}>You&apos;re already subscribed.</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex gap-3 max-w-sm mx-auto">
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="flex-1 px-4 py-2.5 rounded-lg text-sm outline-none"
+              style={{ backgroundColor: C.bg, border: `1px solid ${C.border}`, color: C.text, fontFamily: SANS, fontWeight: 500 }}
+              required
+            />
+            <button
+              type="submit"
+              disabled={status === 'loading' || !email.trim()}
+              className="px-5 py-2.5 rounded-lg text-sm font-bold disabled:opacity-50 whitespace-nowrap"
+              style={{ backgroundColor: '#A3E635', color: '#3B2F2F', fontFamily: SANS }}
+            >
+              {status === 'loading' ? 'Subscribing…' : 'Subscribe'}
+            </button>
+          </form>
+        )}
+        {status === 'error' && <p className="text-xs mt-3" style={{ color: C.momentum }}>Something went wrong — try again.</p>}
+      </div>
+    </div>
   )
 }

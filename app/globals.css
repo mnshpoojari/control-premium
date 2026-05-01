@@ -13,3 +13,12 @@ body {
 * {
   font-family: inherit;
 }
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(163,230,53,0.5), 0 0 18px rgba(163,230,53,0.25); }
+  50%       { box-shadow: 0 0 16px rgba(163,230,53,0.85), 0 0 32px rgba(163,230,53,0.4); }
+}
+
+.btn-glow {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
