@@ -30,11 +30,14 @@ function renderInline(text: string): React.ReactNode[] {
 
 function BriefRenderer({ content }: { content: string }) {
   const elements: React.ReactNode[] = []
+  let nextIsHeadline = false
+
   content.split('\n').forEach((raw, i) => {
     const line = raw.trim()
     if (!line) return
 
     if (/^\*\*[^*]+\*\*$/.test(line)) {
+      nextIsHeadline = true
       elements.push(
         <h2 key={`h-${i}`} style={{ fontFamily: SERIF, color: C.text, fontSize: '1.15rem', fontWeight: 400, marginTop: '2.25rem', marginBottom: '0.6rem', letterSpacing: '-0.01em' }}>
           {line.slice(2, -2)}
@@ -44,12 +47,23 @@ function BriefRenderer({ content }: { content: string }) {
     }
 
     if (/^https?:\/\/\S+$/.test(line)) {
+      nextIsHeadline = false
       const domain = (() => { try { return new URL(line).hostname.replace('www.', '') } catch { return line } })()
       elements.push(
         <a key={`url-${i}`} href={line} target="_blank" rel="noopener noreferrer"
-          style={{ display: 'inline-block', color: C.accent, fontSize: '0.78rem', marginBottom: '0.85rem', borderBottom: `1px solid rgba(216,30,91,0.3)`, textDecoration: 'none', fontFamily: SANS }}>
+          style={{ display: 'inline-block', color: C.accent, fontSize: '0.78rem', marginBottom: '0.85rem', borderBottom: `1px solid rgba(163,230,53,0.4)`, textDecoration: 'none', fontFamily: SANS }}>
           {domain} ↗
         </a>
+      )
+      return
+    }
+
+    if (nextIsHeadline) {
+      nextIsHeadline = false
+      elements.push(
+        <p key={`hl-${i}`} style={{ fontFamily: SANS, fontWeight: 700, fontSize: '1rem', color: C.text, marginBottom: '0.5rem', lineHeight: 1.4 }}>
+          {line}
+        </p>
       )
       return
     }
