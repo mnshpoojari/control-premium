@@ -94,9 +94,7 @@ function ResultsContent() {
         </p>
 
         {loading && (
-          <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
-            <p style={{ fontFamily: SERIF, fontSize: '1.1rem', color: C.text }}>{loadingMessage}</p>
-          </div>
+          <p style={{ fontFamily: SERIF, fontSize: '1.1rem', color: C.muted, textAlign: 'center', padding: '2.5rem 0' }}>{loadingMessage}</p>
         )}
 
         {error && (
