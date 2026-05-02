@@ -95,8 +95,7 @@ function ResultsContent() {
 
         {loading && (
           <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
-            <p style={{ fontFamily: SERIF, fontSize: '1.1rem', color: C.text, marginBottom: '0.5rem' }}>{loadingMessage}</p>
-            <p className="text-xs" style={{ color: C.faint }}>This usually takes 15–20 seconds.</p>
+            <p style={{ fontFamily: SERIF, fontSize: '1.1rem', color: C.text }}>{loadingMessage}</p>
           </div>
         )}
 

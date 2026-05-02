@@ -29,19 +29,32 @@ function renderInline(text: string): React.ReactNode[] {
 }
 
 function BriefRenderer({ content }: { content: string }) {
-  const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  const raw = content.split('\n').map(l => l.trim()).filter(l => l.length > 0)
 
   // Pre-identify deal headlines: short plain lines that have a URL within 7 lines
   const headlineIdx = new Set<number>()
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (/^\*\*[^*]+\*\*$/.test(line)) continue   // section header
-    if (/^https?:\/\//.test(line)) continue        // URL
-    if (line.startsWith('**')) continue            // inline bold (heatmap entries)
-    if (line.length > 130) continue               // too long — it's a paragraph
-    if (line.startsWith('So what')) continue       // analysis tag
-    for (let j = i + 1; j < Math.min(i + 7, lines.length); j++) {
-      if (/^https?:\/\//.test(lines[j])) { headlineIdx.add(i); break }
+  for (let i = 0; i < raw.length; i++) {
+    const line = raw[i]
+    if (/^\*\*[^*]+\*\*$/.test(line)) continue
+    if (/^https?:\/\//.test(line)) continue
+    if (line.startsWith('**')) continue
+    if (line.length > 130) continue
+    if (line.startsWith('So what')) continue
+    for (let j = i + 1; j < Math.min(i + 7, raw.length); j++) {
+      if (/^https?:\/\//.test(raw[j])) { headlineIdx.add(i); break }
+    }
+  }
+
+  // Reorder: move each URL to sit immediately after its headline
+  const skipped = new Set<number>()
+  const lines: string[] = []
+  for (let i = 0; i < raw.length; i++) {
+    if (skipped.has(i)) continue
+    lines.push(raw[i])
+    if (headlineIdx.has(i)) {
+      for (let j = i + 1; j < Math.min(i + 7, raw.length); j++) {
+        if (/^https?:\/\//.test(raw[j])) { lines.push(raw[j]); skipped.add(j); break }
+      }
     }
   }
 
