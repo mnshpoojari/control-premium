@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -33,8 +33,29 @@ const BADGE: Record<string, { border: string; bg: string; text: string; label: s
   'QUIET':        { border: 'rgba(59,47,47,0.2)', bg: 'rgba(59,47,47,0.04)', text: C.muted, label: '● Quiet' },
 }
 
-function Skeleton({ h = 'h-40' }: { h?: string }) {
-  return <div className={`w-full ${h} rounded-2xl animate-pulse`} style={{ backgroundColor: C.card }} />
+const LOADING_MESSAGES = [
+  'Reading between the lines of press releases…',
+  'Following the money…',
+  'Asking sources who prefer to remain anonymous…',
+  'Cross-referencing deal rumours with actual facts…',
+  'Checking what the smart money is doing…',
+  'Separating signal from noise…',
+  'Consulting the deal flow oracle…',
+  'Running the numbers so you don\'t have to…',
+  'Triangulating from 40+ sources…',
+  'Looking past the headline valuation…',
+]
+
+function useLoadingMessage(active: boolean) {
+  const [idx, setIdx] = useState(0)
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    if (!active) { if (timer.current) clearInterval(timer.current); return }
+    setIdx(Math.floor(Math.random() * LOADING_MESSAGES.length))
+    timer.current = setInterval(() => setIdx(i => (i + 1) % LOADING_MESSAGES.length), 2800)
+    return () => { if (timer.current) clearInterval(timer.current) }
+  }, [active])
+  return LOADING_MESSAGES[idx]
 }
 
 function ResultsContent() {
@@ -58,6 +79,7 @@ function ResultsContent() {
   }, [thesis, router])
 
   const badge = data ? (BADGE[data.consensus.state] ?? BADGE['QUIET']) : null
+  const loadingMessage = useLoadingMessage(loading)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg, color: C.text, fontFamily: SANS }}>
@@ -71,7 +93,12 @@ function ResultsContent() {
           &ldquo;{thesis}&rdquo;
         </p>
 
-        {loading && <p className="text-sm mb-6" style={{ color: C.muted }}>Analysing deal flow data…</p>}
+        {loading && (
+          <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
+            <p style={{ fontFamily: SERIF, fontSize: '1.1rem', color: C.text, marginBottom: '0.5rem' }}>{loadingMessage}</p>
+            <p className="text-xs" style={{ color: C.faint }}>This usually takes 15–20 seconds.</p>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-2xl p-6 mb-6" style={{ backgroundColor: C.card, border: `1px solid ${C.momentum}` }}>
@@ -82,7 +109,7 @@ function ResultsContent() {
         <div className="flex flex-col gap-6">
 
           {/* Consensus badge */}
-          {loading ? <Skeleton h="h-36" /> : data && badge && (
+          {!loading && data && badge && (
             <div className="rounded-2xl p-8" style={{ backgroundColor: badge.bg, border: `1px solid ${badge.border}` }}>
               <div className="text-2xl mb-3" style={{ color: badge.text, fontFamily: SERIF }}>{badge.label}</div>
               <p style={{ color: C.text, lineHeight: 1.7, opacity: 0.85, fontFamily: SANS }}>{data.consensus.explanation}</p>
@@ -90,7 +117,7 @@ function ResultsContent() {
           )}
 
           {/* Chart */}
-          {loading ? <Skeleton h="h-72" /> : data && (
+          {!loading && data && (
             <div className="rounded-2xl p-6" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
               <h2 className="text-xs font-semibold uppercase tracking-widest mb-6" style={{ color: C.muted, fontFamily: SANS }}>
                 News Activity — Last 12 Months
@@ -119,7 +146,7 @@ function ResultsContent() {
           )}
 
           {/* Thesis */}
-          {loading ? <Skeleton h="h-64" /> : data && (
+          {!loading && data && (
             <div className="rounded-2xl p-6" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
               <h2 className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: C.muted, fontFamily: SANS }}>
                 What the data says
@@ -133,7 +160,7 @@ function ResultsContent() {
           )}
 
           {/* Evidence */}
-          {loading ? <Skeleton h="h-56" /> : data && (
+          {!loading && data && (
             <div className="rounded-2xl p-6" style={{ backgroundColor: C.card, border: `1px solid ${C.border}` }}>
               <h2 className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: C.muted, fontFamily: SANS }}>
                 What&apos;s driving the signal

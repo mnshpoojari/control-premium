@@ -125,8 +125,6 @@ export default function HomePage() {
         </div>
       </main>
 
-      <SubscribeSection />
-
       <footer className="px-8 py-4 text-center" style={{ color: C.faint, fontSize: '0.75rem', fontFamily: SANS }}>
         Premia · Deal intelligence for deal professionals
         <span className="mx-2">·</span>
