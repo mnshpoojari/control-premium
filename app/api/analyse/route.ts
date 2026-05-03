@@ -123,12 +123,23 @@ const DEAL_KEYWORDS = [
   'buyout', 'take private', 'merger', 'merges', 'carve-out', 'divestiture', 'divests',
   'strategic review', 'sale process', 'capital injection', 'going private',
   'spin-off', 'spins off', 'invested in', 'invests in', 'raises', 'funding round',
-  'series a', 'series b', 'series c', 'growth equity', 'private equity', 'buys',
-  'deal', 'transaction', 'agreed to', 'agreement to',
+  'series a', 'series b', 'series c', 'growth equity', 'buys',
+  'transaction', 'agreed to', 'agreement to', 'closes', 'completes acquisition',
+]
+
+// Patterns that indicate roundups, reports, or opinion pieces — not actual deals
+const NOISE_PATTERNS = [
+  'year in review', 'annual report', 'outlook for', 'predictions for', 'trends in',
+  'state of', 'guide to', 'introduction to', 'overview of', 'history of',
+  'what is', 'how to', 'why ', 'top 10', 'top 5', 'ranking', 'rankings',
+  'podcast', 'webinar', 'conference', 'summit', 'award', 'awards',
+  'interview', 'q&a', 'opinion:', 'column:', 'comment:', 'analysis:',
+  'report:', 'weekly', 'monthly', 'quarterly review', 'market update',
 ]
 
 function isDealArticle(title: string): boolean {
   const t = title.toLowerCase()
+  if (NOISE_PATTERNS.some(p => t.includes(p))) return false
   return DEAL_KEYWORDS.some(kw => t.includes(kw))
 }
 
@@ -138,9 +149,9 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
   const cutoff30 = nDaysAgo(30)
 
   const queries = [
-    `"${rawQuery}" acquisition OR buyout OR "takes stake"`,
-    `"${sector}" "${geography}" acquisition OR merger 2025`,
-    `"${sector}" "private equity" OR "strategic acquisition" 2025`,
+    `"${rawQuery}" acquires OR acquired OR merger OR "takes stake" OR buyout`,
+    `"${sector}" "${geography}" acquires OR acquired OR merger OR investment 2025 2026`,
+    `"${rawQuery}" "funding round" OR "series" OR "growth equity" OR divestiture`,
   ]
 
   const batches = await Promise.all(queries.map(fetchNewsItems))
