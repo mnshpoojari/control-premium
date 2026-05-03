@@ -144,20 +144,20 @@ async function fetchAllItems(): Promise<RawItem[]> {
 
 // ── Recurring story tracking ───────────────────────────────────────────────────
 
-async function getPreviousSeenUrls(): Promise<Map<string, number>> {
+async function getPreviousSeenUrls(): Promise<Set<string>> {
   try {
     const rows: { seen_urls: string[] }[] = await sbGet(
-      'daily_briefs?select=seen_urls&order=date.desc&limit=7'
+      'daily_briefs?select=seen_urls&order=date.desc&limit=3'
     )
-    const counts = new Map<string, number>()
+    const seen = new Set<string>()
     for (const row of rows) {
       for (const url of (row.seen_urls ?? [])) {
-        counts.set(url, (counts.get(url) ?? 0) + 1)
+        seen.add(url)
       }
     }
-    return counts
+    return seen
   } catch {
-    return new Map()
+    return new Set()
   }
 }
 
@@ -204,14 +204,15 @@ WRITING RULES:
 
 Return only the brief. No preamble, no closing remarks.`
 
-async function generateBrief(items: RawItem[], previousSeen: Map<string, number>): Promise<string> {
+async function generateBrief(items: RawItem[], previousSeen: Set<string>): Promise<string> {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
-  const itemsText = items.map((item, i) => {
-    const mentions = previousSeen.get(item.url) ?? 0
-    const status = mentions > 0 ? 'ONGOING' : 'NEW'
+  // Strip URLs seen in the last 3 briefs — Gemini only sees fresh items
+  const freshItems = items.filter(item => !previousSeen.has(item.url))
+
+  const itemsText = freshItems.map((item, i) => {
     const lines = [
-      `[${i + 1}] STATUS: ${status} | MENTIONS: ${mentions + 1}`,
+      `[${i + 1}]`,
       `Title: ${item.title}`,
       `Source: ${item.source}`,
       `Date: ${item.pub.toISOString().split('T')[0]}`,
@@ -245,7 +246,7 @@ async function run() {
   }
 
   const content = await generateBrief(items, previousSeen)
-  const seenUrls = items.map(i => i.url)
+  const seenUrls = items.map(i => i.url) // log all fetched URLs, not just fresh ones
   const today = new Date().toISOString().split('T')[0]
 
   await sbUpsert('daily_briefs', {
