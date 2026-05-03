@@ -27,10 +27,16 @@ interface AnalyseResult {
 }
 
 const BADGE: Record<string, { border: string; bg: string; text: string; label: string }> = {
+  // Emerging / nascent sector signals
   'EARLY SIGNAL': { border: '#A3E635', bg: 'rgba(163,230,53,0.12)', text: '#4a6b1a', label: '● Early Signal' },
   'CONSENSUS':    { border: C.momentum, bg: 'rgba(232,137,42,0.1)', text: C.momentum, label: '● Consensus' },
   'HYPE':         { border: '#c0392b', bg: 'rgba(192,57,43,0.08)', text: '#c0392b', label: '● Hype' },
   'QUIET':        { border: 'rgba(59,47,47,0.2)', bg: 'rgba(59,47,47,0.04)', text: C.muted, label: '● Quiet' },
+  // Mature sector signals
+  'ACTIVE':       { border: C.momentum, bg: 'rgba(232,137,42,0.1)', text: C.momentum, label: '● Active' },
+  'ESTABLISHED':  { border: '#A3E635', bg: 'rgba(163,230,53,0.12)', text: '#4a6b1a', label: '● Established' },
+  'NARRATIVE':    { border: '#c0392b', bg: 'rgba(192,57,43,0.08)', text: '#c0392b', label: '● Narrative' },
+  'COOLING':      { border: 'rgba(59,47,47,0.2)', bg: 'rgba(59,47,47,0.04)', text: C.muted, label: '● Cooling' },
 }
 
 const LOADING_MESSAGES = [
@@ -110,6 +116,9 @@ function ResultsContent() {
             <div className="rounded-2xl p-8" style={{ backgroundColor: badge.bg, border: `1px solid ${badge.border}` }}>
               <div className="text-2xl mb-3" style={{ color: badge.text, fontFamily: SERIF }}>{badge.label}</div>
               <p style={{ color: C.text, lineHeight: 1.7, opacity: 0.85, fontFamily: SANS }}>{data.consensus.explanation}</p>
+              <p className="mt-4 text-xs" style={{ color: badge.text, opacity: 0.6, fontFamily: SANS }}>
+                Signal reflects current deal flow &amp; press activity — not sector maturity.
+              </p>
             </div>
           )}
 
