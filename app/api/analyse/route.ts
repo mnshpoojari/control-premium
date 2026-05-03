@@ -118,6 +118,20 @@ function extractDomain(url: string): string {
   try { return new URL(url).hostname.replace('www.', '') } catch { return '' }
 }
 
+const DEAL_KEYWORDS = [
+  'acquires', 'acquired', 'acquisition', 'takes stake', 'majority stake', 'minority stake',
+  'buyout', 'take private', 'merger', 'merges', 'carve-out', 'divestiture', 'divests',
+  'strategic review', 'sale process', 'capital injection', 'going private',
+  'spin-off', 'spins off', 'invested in', 'invests in', 'raises', 'funding round',
+  'series a', 'series b', 'series c', 'growth equity', 'private equity', 'buys',
+  'deal', 'transaction', 'agreed to', 'agreement to',
+]
+
+function isDealArticle(title: string): boolean {
+  const t = title.toLowerCase()
+  return DEAL_KEYWORDS.some(kw => t.includes(kw))
+}
+
 async function getDealData(sector: string, geography: string, rawQuery: string) {
   const cutoff365 = nDaysAgo(365)
   const cutoff90 = nDaysAgo(90)
@@ -165,10 +179,10 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
     })
   }
 
-  const recentItems = [...items]
-    .sort((a, b) => b.pub.getTime() - a.pub.getTime())
-    .slice(0, 5)
-    .map(({ pub: _, ...rest }) => rest)
+  const sorted = [...items].sort((a, b) => b.pub.getTime() - a.pub.getTime())
+  const dealItems = sorted.filter(item => isDealArticle(item.title))
+  const evidence = dealItems.length >= 3 ? dealItems : sorted
+  const recentItems = evidence.slice(0, 5).map(({ pub: _, ...rest }) => rest)
 
   return { chartData, recentItems, count30d, count90d }
 }
