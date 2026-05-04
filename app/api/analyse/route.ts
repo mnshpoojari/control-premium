@@ -40,7 +40,7 @@ Thesis: "${thesis}"
   "sector": "match to one of: Healthcare IT, Climate Infrastructure, B2B SaaS, Fintech, Consumer Tech, Industrial Tech, Real Estate, Energy, Financial Services, Media & Entertainment, Retail & Consumer, Logistics & Supply Chain, Education Tech, Defence & Aerospace, Agriculture Tech, Other",
   "sub_sector": "the specific niche within that sector, as the user stated it — e.g. 'femtech', 'hospital management software', 'buy now pay later'. Use the user's exact words, not a generic label. Leave empty string if the thesis is already at sector level.",
   "geography": "match to one of: United States, India, United Kingdom, Germany, France, Southeast Asia, Middle East, Australia, China, Other",
-  "raw_query": "the most specific search term for Google News — prefer sub_sector over sector if present, e.g. 'femtech India' not 'Healthcare IT India'"
+  "raw_query": "2-4 words for Google News search — use the sector/product terms only, never investment strategy words like 'roll-ups', 'consolidation', 'vertical integration', 'buyout strategy'. e.g. for 'Healthcare IT roll-ups in the US' → 'healthcare IT'; for 'femtech in the UK' → 'femtech UK'; for 'B2B SaaS Germany' → 'B2B SaaS Germany'"
 }`
 
   const result = await gemini.generateContent(prompt)
