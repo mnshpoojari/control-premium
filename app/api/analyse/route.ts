@@ -121,12 +121,19 @@ function extractDomain(url: string): string {
 }
 
 const DEAL_KEYWORDS = [
+  // M&A
   'acquires', 'acquired', 'acquisition', 'takes stake', 'majority stake', 'minority stake',
   'buyout', 'take private', 'merger', 'merges', 'carve-out', 'divestiture', 'divests',
-  'strategic review', 'sale process', 'capital injection', 'going private',
-  'spin-off', 'spins off', 'invested in', 'invests in', 'raises', 'funding round',
-  'series a', 'series b', 'series c', 'growth equity', 'buys',
-  'transaction', 'agreed to', 'agreement to', 'closes', 'completes acquisition',
+  'strategic review', 'sale process', 'going private', 'spin-off', 'spins off',
+  'buys', 'agreed to acquire', 'completes acquisition',
+  // Funding & investment
+  'raises', 'raised', 'funding round', 'series a', 'series b', 'series c', 'series d',
+  'seed round', 'pre-seed', 'growth equity', 'venture capital', 'invested in', 'invests in',
+  'capital injection', 'backs', 'led by', 'closes funding', 'secures funding',
+  // Strategic moves
+  'joint venture', 'jv with', 'strategic partnership', 'strategic investment',
+  'strategic acquisition', 'takes equity stake', 'equity investment',
+  'signed agreement', 'agreement to', 'transaction', 'deal with',
 ]
 
 // Patterns that indicate roundups, reports, or opinion pieces — not actual deals
@@ -160,8 +167,9 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
   const geoClause = geography !== 'Other' ? ` "${geography}"` : ''
   const queries = [
     `"${rawQuery}"${geoClause} acquires OR acquired OR merger OR "takes stake" OR buyout`,
-    `"${rawQuery}"${geoClause} "funding round" OR "series a" OR "series b" OR "growth equity" OR investment`,
-    `"${rawQuery}"${geoClause} divestiture OR "strategic acquisition" OR "majority stake" OR "minority stake"`,
+    `"${rawQuery}"${geoClause} raises OR "funding round" OR "series a" OR "series b" OR "series c" OR "growth equity"`,
+    `"${rawQuery}"${geoClause} "joint venture" OR "strategic investment" OR "equity stake" OR "strategic partnership"`,
+    `"${rawQuery}"${geoClause} "seed round" OR "venture capital" OR "backs" OR "secures funding"`,
   ]
 
   const batches = await Promise.all(queries.map(fetchNewsItems))
@@ -457,6 +465,9 @@ export async function POST(req: NextRequest) {
       synthesisItems,
     })
 
+    const confidence: 'high' | 'medium' | 'low' =
+      count90d >= 20 ? 'high' : count90d >= 7 ? 'medium' : 'low'
+
     return NextResponse.json({
       consensus,
       chart_data: chartData,
@@ -466,6 +477,7 @@ export async function POST(req: NextRequest) {
         media_sources: mediaCount90d,
         velocity_ratio: Math.round(velocityRatio * 100) / 100,
         signal_gap: count90d - mediaCount90d,
+        confidence,
       },
       thesis: thesisText,
       evidence: evidenceItems,

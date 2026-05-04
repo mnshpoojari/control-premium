@@ -27,6 +27,7 @@ interface AnalyseResult {
     media_sources: number
     velocity_ratio: number
     signal_gap: number
+    confidence: 'high' | 'medium' | 'low'
   }
   thesis: string
   evidence: { title: string; url: string; published_date: string; source: string }[]
@@ -120,7 +121,21 @@ function ResultsContent() {
           {/* Consensus badge */}
           {!loading && data && badge && (
             <div className="rounded-2xl p-8" style={{ backgroundColor: badge.bg, border: `1px solid ${badge.border}` }}>
-              <div className="text-2xl mb-6" style={{ color: badge.text, fontFamily: SERIF }}>{badge.label}</div>
+              <div className="flex items-start justify-between mb-6 gap-4">
+                <div className="text-2xl" style={{ color: badge.text, fontFamily: SERIF }}>{badge.label}</div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{
+                    backgroundColor: data.stats.confidence === 'high' ? 'rgba(163,230,53,0.15)' : data.stats.confidence === 'medium' ? 'rgba(232,137,42,0.12)' : 'rgba(59,47,47,0.08)',
+                    color: data.stats.confidence === 'high' ? '#4a6b1a' : data.stats.confidence === 'medium' ? C.momentum : C.muted,
+                    fontFamily: SANS,
+                  }}>
+                    {data.stats.confidence === 'high' ? 'High confidence' : data.stats.confidence === 'medium' ? 'Medium confidence' : 'Low confidence'}
+                  </span>
+                  <span className="text-xs" style={{ color: C.muted, fontFamily: SANS }}>
+                    based on {data.stats.count_90d} items · 90 days
+                  </span>
+                </div>
+              </div>
 
               {/* Signal mechanics */}
               <div className="grid grid-cols-3 gap-4 mb-5">
