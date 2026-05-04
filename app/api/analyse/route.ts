@@ -164,12 +164,15 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
   const cutoff90 = nDaysAgo(90)
   const cutoff30 = nDaysAgo(30)
 
+  // No quotes around rawQuery — exact phrase match kills results for multi-word terms.
+  // Geography quoted because it's a known proper noun.
   const geoClause = geography !== 'Other' ? ` "${geography}"` : ''
+  const q = rawQuery  // unquoted: Google News treats terms as AND
   const queries = [
-    `"${rawQuery}"${geoClause} acquires OR acquired OR merger OR "takes stake" OR buyout`,
-    `"${rawQuery}"${geoClause} raises OR "funding round" OR "series a" OR "series b" OR "series c" OR "growth equity"`,
-    `"${rawQuery}"${geoClause} "joint venture" OR "strategic investment" OR "equity stake" OR "strategic partnership"`,
-    `"${rawQuery}"${geoClause} "seed round" OR "venture capital" OR "backs" OR "secures funding"`,
+    `${q}${geoClause} acquires OR acquired OR merger OR "takes stake" OR buyout OR "roll-up"`,
+    `${q}${geoClause} raises OR "funding round" OR "series a" OR "series b" OR "series c" OR "growth equity"`,
+    `${q}${geoClause} "joint venture" OR "strategic investment" OR "equity stake" OR "strategic partnership"`,
+    `${q}${geoClause} "seed round" OR "venture capital" OR "backs" OR "secures funding"`,
   ]
 
   const batches = await Promise.all(queries.map(fetchNewsItems))
