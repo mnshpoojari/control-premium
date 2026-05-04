@@ -129,12 +129,19 @@ const DEAL_KEYWORDS = [
 
 // Patterns that indicate roundups, reports, or opinion pieces — not actual deals
 const NOISE_PATTERNS = [
+  // Review / roundup pieces
   'year in review', 'annual report', 'outlook for', 'predictions for', 'trends in',
   'state of', 'guide to', 'introduction to', 'overview of', 'history of',
-  'what is', 'how to', 'why ', 'top 10', 'top 5', 'ranking', 'rankings',
+  'what is', 'how to', 'top 10', 'top 5', 'ranking', 'rankings',
   'podcast', 'webinar', 'conference', 'summit', 'award', 'awards',
-  'interview', 'q&a', 'opinion:', 'column:', 'comment:', 'analysis:',
-  'report:', 'weekly', 'monthly', 'quarterly review', 'market update',
+  'interview', 'q&a', 'opinion:', 'column:', 'comment:',
+  'weekly', 'monthly', 'quarterly review', 'market update',
+  // Market research reports
+  'market analysis', 'market report', 'market size', 'market share',
+  'market research', 'market forecast', 'market growth', 'market study',
+  'global market', 'industry report', 'industry analysis', 'industry forecast',
+  'research report', 'growth report', 'future market', 'market insights',
+  'cagr', 'compound annual', 'market valuation', 'market revenue',
 ]
 
 function isDealArticle(title: string): boolean {
@@ -148,10 +155,11 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
   const cutoff90 = nDaysAgo(90)
   const cutoff30 = nDaysAgo(30)
 
+  const geoClause = geography !== 'Other' ? ` "${geography}"` : ''
   const queries = [
-    `"${rawQuery}" acquires OR acquired OR merger OR "takes stake" OR buyout`,
-    `"${sector}" "${geography}" acquires OR acquired OR merger OR investment 2025 2026`,
-    `"${rawQuery}" "funding round" OR "series" OR "growth equity" OR divestiture`,
+    `"${rawQuery}"${geoClause} acquires OR acquired OR merger OR "takes stake" OR buyout`,
+    `"${rawQuery}"${geoClause} "funding round" OR "series a" OR "series b" OR "growth equity" OR investment`,
+    `"${rawQuery}"${geoClause} divestiture OR "strategic acquisition" OR "majority stake" OR "minority stake"`,
   ]
 
   const batches = await Promise.all(queries.map(fetchNewsItems))
