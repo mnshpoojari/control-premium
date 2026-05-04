@@ -98,6 +98,39 @@ export default function HomePage() {
                 Analyse
               </button>
             </form>
+
+            <div className="flex flex-wrap gap-2 mt-3">
+              {[
+                'Climate infra in India',
+                'Wealthtech in Southeast Asia',
+                'Healthcare IT roll-ups in the US',
+                'B2B SaaS in Germany',
+                'Femtech in the UK',
+              ].map(example => (
+                <button
+                  key={example}
+                  onClick={() => router.push(`/results?thesis=${encodeURIComponent(example)}`)}
+                  className="px-3 py-1.5 rounded-full text-xs transition-colors"
+                  style={{
+                    backgroundColor: C.card,
+                    color: C.muted,
+                    border: `1px solid ${C.border}`,
+                    fontFamily: SANS,
+                    fontWeight: 500,
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = C.text
+                    e.currentTarget.style.color = C.text
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = C.border
+                    e.currentTarget.style.color = C.muted
+                  }}
+                >
+                  {example} →
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
