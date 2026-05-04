@@ -38,13 +38,15 @@ Thesis: "${thesis}"
 
 {
   "sector": "match to one of: Healthcare IT, Climate Infrastructure, B2B SaaS, Fintech, Consumer Tech, Industrial Tech, Real Estate, Energy, Financial Services, Media & Entertainment, Retail & Consumer, Logistics & Supply Chain, Education Tech, Defence & Aerospace, Agriculture Tech, Other",
+  "sub_sector": "the specific niche within that sector, as the user stated it — e.g. 'femtech', 'hospital management software', 'buy now pay later'. Use the user's exact words, not a generic label. Leave empty string if the thesis is already at sector level.",
   "geography": "match to one of: United States, India, United Kingdom, Germany, France, Southeast Asia, Middle East, Australia, China, Other",
-  "raw_query": "a clean 3-5 word description for Google News search"
+  "raw_query": "the most specific search term for Google News — prefer sub_sector over sector if present, e.g. 'femtech India' not 'Healthcare IT India'"
 }`
 
   const result = await gemini.generateContent(prompt)
   return extractJSON(result.response.text()) as {
     sector: string
+    sub_sector: string
     geography: string
     raw_query: string
   }
@@ -214,6 +216,13 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
 // ── Step 3: Media mention count ────────────────────────────────────────────────
 
+// High-quality financial news domains — weighted 2x in source count
+const QUALITY_DOMAINS = new Set([
+  'ft.com', 'reuters.com', 'bloomberg.com', 'wsj.com', 'economist.com',
+  'financialtimes.com', 'dealbook.com', 'axios.com', 'businessinsider.com',
+  'techcrunch.com', 'crunchbase.com', 'pitchbook.com', 'peHub.com',
+])
+
 async function getMediaMentionCount(rawQuery: string): Promise<number> {
   try {
     const parser = new Parser({ timeout: 5000 })
@@ -221,7 +230,19 @@ async function getMediaMentionCount(rawQuery: string): Promise<number> {
     const url = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`
     const feed = await parser.parseURL(url)
     const cutoff = nDaysAgo(90)
-    return feed.items.filter(item => new Date(item.pubDate ?? 0) >= cutoff).length
+
+    // Count unique sources, weighting quality domains double
+    const sources = new Set<string>()
+    let score = 0
+    for (const item of feed.items) {
+      if (!item.link || new Date(item.pubDate ?? 0) < cutoff) continue
+      const domain = extractDomain(item.link)
+      if (!sources.has(domain)) {
+        sources.add(domain)
+        score += QUALITY_DOMAINS.has(domain) ? 2 : 1
+      }
+    }
+    return score
   } catch {
     return 0
   }
@@ -231,9 +252,15 @@ async function getMediaMentionCount(rawQuery: string): Promise<number> {
 
 function calculateConsensusScore(
   dealCount90d: number,
+  dealCount30d: number,
   mediaCount90d: number,
   maturity: Maturity,
 ) {
+  // Velocity: how fast deals are arriving now vs the prior 60 days
+  // > 1 = accelerating, < 1 = decelerating
+  const priorRate = Math.max((dealCount90d - dealCount30d) / 60, 0.05)
+  const velocityRatio = (dealCount30d / 30) / priorRate
+  const accelerating = velocityRatio >= 1.5
   if (maturity === 'MATURE') {
     // For established sectors, the frame is entirely different.
     // Low volume ≠ undiscovered opportunity. It means steady-state or cooling.
@@ -264,30 +291,40 @@ function calculateConsensusScore(
     }
   }
 
-  // EMERGING or NASCENT: original signal logic applies
+  // EMERGING or NASCENT: velocity-weighted signal logic
   if (dealCount90d >= 3 && dealCount90d > mediaCount90d * 1.5) {
     return {
       state: 'EARLY SIGNAL',
       colour: 'green',
-      explanation: "Deal activity in this space is outpacing media coverage — this theme hasn't fully entered the mainstream narrative yet.",
+      explanation: accelerating
+        ? "Deal activity is outpacing media coverage and accelerating — capital is moving faster than the narrative has caught up."
+        : "Deal activity in this space is outpacing media coverage — this theme hasn't fully entered the mainstream narrative yet.",
     }
   } else if (dealCount90d >= 3 && mediaCount90d >= dealCount90d * 0.8) {
     return {
       state: 'CONSENSUS',
       colour: 'yellow',
-      explanation: 'This theme has broad market and media attention — the narrative is well-formed and most participants are already aware.',
+      explanation: accelerating
+        ? 'A well-tracked theme that is re-accelerating — deal flow is picking up even as the narrative is already mainstream.'
+        : 'This theme has broad market and media attention — the narrative is well-formed and most participants are already aware.',
     }
   } else if (dealCount90d < 3 && mediaCount90d >= 5) {
     return {
       state: 'HYPE',
       colour: 'red',
-      explanation: 'Media coverage is running ahead of actual deal activity — interest may be outpacing real capital deployment.',
+      explanation: 'Media coverage is running well ahead of actual deal activity — interest is outpacing real capital deployment.',
+    }
+  } else if (accelerating && dealCount90d >= 1) {
+    return {
+      state: 'EARLY SIGNAL',
+      colour: 'green',
+      explanation: 'Deal count is low in absolute terms but the recent rate is accelerating sharply — worth watching for confirmation.',
     }
   } else {
     return {
       state: 'QUIET',
       colour: 'grey',
-      explanation: 'Limited deal activity and media coverage in this space — either very early stage or not yet an active theme.',
+      explanation: 'Limited deal activity and media coverage — either very early stage or not yet an active theme.',
     }
   }
 }
@@ -301,6 +338,7 @@ async function generateThesis(params: {
   maturityReason: string
   count30d: number
   count90d: number
+  velocityRatio: number
   mediaCount90d: number
   synthesisItems: unknown[]
 }): Promise<string> {
@@ -315,6 +353,7 @@ Data:
 - Sector maturity: ${params.maturity} (${params.maturityReason})
 - Signal: ${params.consensusState}
 - Deal count (last 30 days): ${params.count30d}
+- Velocity ratio (30d rate vs prior 60d rate): ${params.velocityRatio.toFixed(2)}x ${params.velocityRatio >= 1.5 ? '— accelerating' : params.velocityRatio < 0.7 ? '— decelerating' : '— stable'}
 - Deal count (last 90 days): ${params.count90d}
 - Media mentions (last 90 days): ${params.mediaCount90d}
 - Recent news and context: ${JSON.stringify(params.synthesisItems)}
@@ -335,11 +374,13 @@ Return only the three paragraphs. No headers, no bullet points, no preamble.`
   } catch (err) {
     console.error('Gemini thesis error:', err)
     // Rich data-driven fallback
-    const trend = params.count30d > (params.count90d - params.count30d) / 2
-      ? 'accelerating — the most recent 30 days account for a disproportionate share of the 90-day total'
+    const trend = params.velocityRatio >= 1.5
+      ? `accelerating sharply (${params.velocityRatio.toFixed(1)}× the prior rate)`
       : params.count30d === 0
         ? 'effectively stalled, with no recorded items in the last 30 days'
-        : 'running at a broadly consistent pace across the quarter'
+        : params.velocityRatio < 0.7
+          ? 'decelerating — the pace has dropped relative to the prior two months'
+          : 'running at a broadly consistent pace across the quarter'
     const mediaVsDeals = params.mediaCount90d > params.count90d * 1.5
       ? 'Media coverage is running well ahead of transaction volume, suggesting narrative interest has outpaced actual capital deployment.'
       : params.count90d > params.mediaCount90d * 1.5
@@ -399,7 +440,9 @@ export async function POST(req: NextRequest) {
     ])
 
     // Step 4
-    const consensus = calculateConsensusScore(count90d, mediaCount90d, maturityResult.maturity)
+    const consensus = calculateConsensusScore(count90d, count30d, mediaCount90d, maturityResult.maturity)
+    const priorRate = Math.max((count90d - count30d) / 60, 0.05)
+    const velocityRatio = (count30d / 30) / priorRate
 
     // Step 5
     const thesisText = await generateThesis({
@@ -409,6 +452,7 @@ export async function POST(req: NextRequest) {
       maturityReason: maturityResult.reason,
       count30d,
       count90d,
+      velocityRatio,
       mediaCount90d,
       synthesisItems,
     })
