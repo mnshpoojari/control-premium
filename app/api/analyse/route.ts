@@ -460,7 +460,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       consensus,
       chart_data: chartData,
-      stats: { count_30d: count30d, count_90d: count90d },
+      stats: {
+        count_30d: count30d,
+        count_90d: count90d,
+        media_sources: mediaCount90d,
+        velocity_ratio: Math.round(velocityRatio * 100) / 100,
+        signal_gap: count90d - mediaCount90d,
+      },
       thesis: thesisText,
       evidence: evidenceItems,
     })

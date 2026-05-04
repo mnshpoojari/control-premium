@@ -21,7 +21,13 @@ const C = {
 interface AnalyseResult {
   consensus: { state: string; colour: string; explanation: string }
   chart_data: { month: string; deal_count: number }[]
-  stats: { count_30d: number; count_90d: number }
+  stats: {
+    count_30d: number
+    count_90d: number
+    media_sources: number
+    velocity_ratio: number
+    signal_gap: number
+  }
   thesis: string
   evidence: { title: string; url: string; published_date: string; source: string }[]
 }
@@ -114,10 +120,34 @@ function ResultsContent() {
           {/* Consensus badge */}
           {!loading && data && badge && (
             <div className="rounded-2xl p-8" style={{ backgroundColor: badge.bg, border: `1px solid ${badge.border}` }}>
-              <div className="text-2xl mb-3" style={{ color: badge.text, fontFamily: SERIF }}>{badge.label}</div>
-              <p style={{ color: C.text, lineHeight: 1.7, opacity: 0.85, fontFamily: SANS }}>{data.consensus.explanation}</p>
-              <p className="mt-4 text-xs" style={{ color: badge.text, opacity: 0.6, fontFamily: SANS }}>
-                Signal reflects current deal flow &amp; press activity — not sector maturity.
+              <div className="text-2xl mb-6" style={{ color: badge.text, fontFamily: SERIF }}>{badge.label}</div>
+
+              {/* Signal mechanics */}
+              <div className="grid grid-cols-3 gap-4 mb-5">
+                {(() => {
+                  const v = data.stats.velocity_ratio
+                  const pct = Math.round(Math.abs(v - 1) * 100)
+                  const velocityLabel = v >= 1.5 ? `↑ ${pct}% vs prior` : v <= 0.7 ? `↓ ${pct}% vs prior` : '→ flat'
+                  const velocityColor = v >= 1.5 ? '#4a6b1a' : v <= 0.7 ? '#c0392b' : C.muted
+                  const gapVal = data.stats.signal_gap
+                  const gapLabel = gapVal > 0 ? `+${gapVal} deals ahead` : gapVal < 0 ? `${gapVal} media ahead` : 'in step'
+
+                  return [
+                    { label: 'Deals · 90d', value: data.stats.count_90d, sub: velocityLabel, subColor: velocityColor },
+                    { label: 'Unique sources', value: data.stats.media_sources, sub: 'tracking this theme', subColor: C.muted },
+                    { label: 'Signal gap', value: gapVal > 0 ? `+${gapVal}` : gapVal, sub: gapLabel, subColor: C.muted },
+                  ].map(({ label, value, sub, subColor }) => (
+                    <div key={label}>
+                      <div className="text-xs mb-1" style={{ color: C.muted, fontFamily: SANS, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                      <div className="text-2xl" style={{ color: C.text, fontFamily: SERIF, lineHeight: 1 }}>{value}</div>
+                      <div className="text-xs mt-1" style={{ color: subColor, fontFamily: SANS }}>{sub}</div>
+                    </div>
+                  ))
+                })()}
+              </div>
+
+              <p className="text-sm" style={{ color: C.text, lineHeight: 1.65, opacity: 0.7, fontFamily: SANS, borderTop: `1px solid ${badge.border}`, paddingTop: '1rem' }}>
+                {data.consensus.explanation}
               </p>
             </div>
           )}
