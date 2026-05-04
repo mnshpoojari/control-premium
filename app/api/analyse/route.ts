@@ -124,16 +124,15 @@ const DEAL_KEYWORDS = [
   // M&A
   'acquires', 'acquired', 'acquisition', 'takes stake', 'majority stake', 'minority stake',
   'buyout', 'take private', 'merger', 'merges', 'carve-out', 'divestiture', 'divests',
-  'strategic review', 'sale process', 'going private', 'spin-off', 'spins off',
+  'sale process', 'going private', 'spin-off', 'spins off',
   'buys', 'agreed to acquire', 'completes acquisition',
-  // Funding & investment
-  'raises', 'raised', 'funding round', 'series a', 'series b', 'series c', 'series d',
+  // Funding & investment — specific enough to avoid false positives
+  'raises $', 'raises €', 'raises £', 'funding round', 'series a', 'series b', 'series c', 'series d',
   'seed round', 'pre-seed', 'growth equity', 'venture capital', 'invested in', 'invests in',
-  'capital injection', 'backs', 'led by', 'closes funding', 'secures funding',
+  'secures funding', 'closes funding', 'pre-ipo', 'equity stake',
   // Strategic moves
-  'joint venture', 'jv with', 'strategic partnership', 'strategic investment',
-  'strategic acquisition', 'takes equity stake', 'equity investment',
-  'signed agreement', 'agreement to', 'transaction', 'deal with',
+  'joint venture', 'strategic investment', 'strategic acquisition',
+  'takes equity', 'equity investment',
 ]
 
 // Patterns that indicate roundups, reports, or opinion pieces — not actual deals
@@ -153,10 +152,28 @@ const NOISE_PATTERNS = [
   'cagr', 'compound annual', 'market valuation', 'market revenue',
 ]
 
-function isDealArticle(title: string): boolean {
+const GEO_ALIASES: Record<string, string[]> = {
+  'United States': ['us', 'u.s.', 'united states', 'america', 'american'],
+  'India': ['india', 'indian'],
+  'United Kingdom': ['uk', 'u.k.', 'britain', 'british', 'england'],
+  'Germany': ['germany', 'german'],
+  'France': ['france', 'french'],
+  'Southeast Asia': ['southeast asia', 'sea', 'asean', 'singapore', 'indonesia', 'thailand', 'vietnam', 'malaysia'],
+  'Middle East': ['middle east', 'mena', 'gulf', 'uae', 'saudi', 'qatar'],
+  'Australia': ['australia', 'australian'],
+  'China': ['china', 'chinese'],
+}
+
+function isDealArticle(title: string, geography?: string): boolean {
   const t = title.toLowerCase()
   if (NOISE_PATTERNS.some(p => t.includes(p))) return false
-  return DEAL_KEYWORDS.some(kw => t.includes(kw))
+  if (!DEAL_KEYWORDS.some(kw => t.includes(kw))) return false
+  // If geography is known, require at least one geo term in the title to filter cross-geo noise
+  if (geography && geography !== 'Other') {
+    const aliases = GEO_ALIASES[geography] ?? [geography.toLowerCase()]
+    if (!aliases.some(a => t.includes(a))) return false
+  }
+  return true
 }
 
 async function getDealData(sector: string, geography: string, rawQuery: string) {
@@ -177,11 +194,23 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
   const batches = await Promise.all(queries.map(fetchNewsItems))
 
+  const geoAliases = geography !== 'Other' ? (GEO_ALIASES[geography] ?? [geography.toLowerCase()]) : null
+
   const seen = new Set<string>()
   const items: NewsItem[] = []
   for (const batch of batches) {
     for (const item of batch) {
       if (!seen.has(item.url) && item.pub >= cutoff365) {
+        // Drop items where the title clearly refers to a different geography
+        if (geoAliases) {
+          const t = item.title.toLowerCase()
+          const hasGeo = geoAliases.some(a => t.includes(a))
+          // Only exclude if title explicitly names a DIFFERENT known country
+          const otherGeos = ['india', 'china', 'uk', 'germany', 'france', 'australia', 'singapore', 'uae', 'saudi']
+            .filter(g => !geoAliases.includes(g))
+          const hasOtherGeo = otherGeos.some(g => t.includes(g))
+          if (hasOtherGeo && !hasGeo) continue
+        }
         seen.add(item.url)
         items.push(item)
       }
@@ -213,8 +242,8 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
   const sorted = [...items].sort((a, b) => b.pub.getTime() - a.pub.getTime())
 
-  // Evidence links: only actual deal articles shown to the user
-  const dealItems = sorted.filter(item => isDealArticle(item.title))
+  // Evidence links: only actual deal articles shown to the user, geo-filtered
+  const dealItems = sorted.filter(item => isDealArticle(item.title, geography))
   const evidenceItems = (dealItems.length >= 3 ? dealItems : sorted)
     .slice(0, 5)
     .map(({ pub: _, ...rest }) => rest)
