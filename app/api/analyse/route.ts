@@ -199,11 +199,17 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
   }
 
   const sorted = [...items].sort((a, b) => b.pub.getTime() - a.pub.getTime())
-  const dealItems = sorted.filter(item => isDealArticle(item.title))
-  const evidence = dealItems.length >= 3 ? dealItems : sorted
-  const recentItems = evidence.slice(0, 5).map(({ pub: _, ...rest }) => rest)
 
-  return { chartData, recentItems, count30d, count90d }
+  // Evidence links: only actual deal articles shown to the user
+  const dealItems = sorted.filter(item => isDealArticle(item.title))
+  const evidenceItems = (dealItems.length >= 3 ? dealItems : sorted)
+    .slice(0, 5)
+    .map(({ pub: _, ...rest }) => rest)
+
+  // Synthesis context: all items including research reports, for Gemini to reason from
+  const synthesisItems = sorted.slice(0, 15).map(({ pub: _, ...rest }) => rest)
+
+  return { chartData, evidenceItems, synthesisItems, count30d, count90d }
 }
 
 // ── Step 3: Media mention count ────────────────────────────────────────────────
@@ -296,7 +302,7 @@ async function generateThesis(params: {
   count30d: number
   count90d: number
   mediaCount90d: number
-  recentItems: unknown[]
+  synthesisItems: unknown[]
 }): Promise<string> {
   const prompt = `You are a senior capital markets analyst writing for an audience of M&A advisors and fund managers.
 
@@ -311,7 +317,7 @@ Data:
 - Deal count (last 30 days): ${params.count30d}
 - Deal count (last 90 days): ${params.count90d}
 - Media mentions (last 90 days): ${params.mediaCount90d}
-- Recent news: ${JSON.stringify(params.recentItems)}
+- Recent news and context: ${JSON.stringify(params.synthesisItems)}
 
 Paragraph 1 (3-4 sentences): Open with one plain sentence on how mature or new this sector is in this geography — no spin, just the obvious fact (e.g. "Saudi oil is a century-old industry dominated by Aramco and sovereign capital"). Then describe what the current deal flow data shows: volume trend, acceleration or deceleration. Reference specific numbers.
 
@@ -346,7 +352,7 @@ Return only the three paragraphs. No headers, no bullet points, no preamble.`
       NASCENT: `This is an early-stage theme with limited transaction history — the data should be read as directional signal rather than established trend.`,
     }[params.maturity]
 
-    const recentTitles = (params.recentItems as { title: string }[]).slice(0, 2).map(i => i.title)
+    const recentTitles = (params.synthesisItems as { title: string }[]).slice(0, 2).map(i => i.title)
     const evidenceLine = recentTitles.length > 0
       ? `Recent coverage includes: ${recentTitles.join('; ')}.`
       : 'No named transactions were surfaced in the most recent news scan.'
@@ -386,7 +392,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Steps 1b + 2 + 3 in parallel
-    const [maturityResult, { chartData, recentItems, count30d, count90d }, mediaCount90d] = await Promise.all([
+    const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, mediaCount90d] = await Promise.all([
       classifyMaturity(thesis, sector, geography),
       getDealData(sector, geography, raw_query),
       getMediaMentionCount(raw_query),
@@ -404,7 +410,7 @@ export async function POST(req: NextRequest) {
       count30d,
       count90d,
       mediaCount90d,
-      recentItems,
+      synthesisItems,
     })
 
     return NextResponse.json({
@@ -412,7 +418,7 @@ export async function POST(req: NextRequest) {
       chart_data: chartData,
       stats: { count_30d: count30d, count_90d: count90d },
       thesis: thesisText,
-      evidence: recentItems,
+      evidence: evidenceItems,
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'
