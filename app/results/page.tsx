@@ -3,6 +3,17 @@
 import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 
+function useIsMobile(breakpoint = 700) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+  return isMobile
+}
+
 interface AnalyseResult {
   consensus: { state: string; colour: string; explanation: string }
   chart_data: { month: string; deal_count: number }[]
@@ -118,6 +129,7 @@ function MiniLineChart({ data }: { data: { month: string; deal_count: number }[]
 function ResultsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const isMobile = useIsMobile()
   const thesis = searchParams.get('thesis') ?? ''
   const [data, setData] = useState<AnalyseResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -232,16 +244,20 @@ function ResultsContent() {
               </div>
 
               {/* Stats tiles */}
-              <div style={{ display: 'flex', marginTop: 20, background: 'rgba(255,255,255,.45)', border: '1px solid rgba(43,37,32,.10)', borderRadius: 12, position: 'relative' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', marginTop: 20, background: 'rgba(255,255,255,.45)', border: '1px solid rgba(43,37,32,.10)', borderRadius: 12 }}>
                 {[
                   { label: 'Deals · 30d',  value: data.stats.count_30d, sub: velLabel, color: velColor },
                   { label: 'Deals · 90d',  value: data.stats.count_90d, sub: 'transactions tracked', color: 'var(--ink)' },
                   { label: 'Sources',       value: data.stats.media_sources, sub: 'unique outlets', color: 'var(--ink)' },
                   { label: 'Signal gap',    value: gap > 0 ? `+${gap}` : String(gap), sub: gap >= 0 ? 'deals ahead of media' : 'media ahead of deals', color: gap >= 0 ? '#7CB518' : '#B83A26' },
-                ].map((t, i, arr) => (
-                  <div key={i} style={{ flex: 1, minWidth: 0, padding: '14px 18px', borderRight: i < arr.length - 1 ? '1px dashed rgba(43,37,32,.16)' : 'none' }}>
+                ].map((t, i) => (
+                  <div key={i} style={{
+                    padding: isMobile ? '12px 14px' : '14px 18px',
+                    borderRight: isMobile ? (i % 2 === 0 ? '1px dashed rgba(43,37,32,.16)' : 'none') : (i < 3 ? '1px dashed rgba(43,37,32,.16)' : 'none'),
+                    borderBottom: isMobile && i < 2 ? '1px dashed rgba(43,37,32,.16)' : 'none',
+                  }}>
                     <div className="mono" style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-mute)' }}>{t.label.toUpperCase()}</div>
-                    <div className="num" style={{ fontSize: 32, lineHeight: 1.05, marginTop: 4, color: t.color }}>{t.value}</div>
+                    <div className="num" style={{ fontSize: isMobile ? 26 : 32, lineHeight: 1.05, marginTop: 4, color: t.color }}>{t.value}</div>
                     <div style={{ fontSize: 11, marginTop: 2, color: 'var(--ink-mute)' }}>{t.sub}</div>
                   </div>
                 ))}
@@ -253,7 +269,7 @@ function ResultsContent() {
             </section>
 
             {/* CHART + CONFIDENCE */}
-            <section style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
+            <section style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 16 }}>
               <div className="paper" style={{ padding: '20px 22px' }}>
                 <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 4 }}>NEWS & DEAL ACTIVITY</div>
                 <div className="serif" style={{ fontSize: 18, marginBottom: 14 }}>Past 12 Months</div>
