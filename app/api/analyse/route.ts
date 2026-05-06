@@ -150,7 +150,54 @@ const NOISE_PATTERNS = [
   'global market', 'industry report', 'industry analysis', 'industry forecast',
   'research report', 'growth report', 'future market', 'market insights',
   'cagr', 'compound annual', 'market valuation', 'market revenue',
+  // Political / non-commercial context
+  'anti-defection', 'defection law', 'joining a rival party', 'free speech',
+  'political party', 'opposition party', 'ruling party', 'coalition government',
+  'parliament', 'legislature', 'senator', 'congressman', 'member of parliament',
+  'election', 're-election', 'by-election', 'ballot', 'referendum',
 ]
+
+// Stop words excluded from title similarity comparison
+const TITLE_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'that', 'with', 'from', 'this', 'have', 'will',
+  'its', 'are', 'was', 'been', 'into', 'new', 'over', 'deal', 'company',
+])
+
+function isSameStory(titleA: string, titleB: string): boolean {
+  const words = (t: string) => new Set(
+    t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
+      .filter(w => w.length > 3 && !TITLE_STOP_WORDS.has(w))
+  )
+  const wa = words(titleA)
+  const wb = words(titleB)
+  let shared = 0
+  for (const w of wa) if (wb.has(w)) shared++
+  return shared >= 4
+}
+
+function deduplicateByContent(items: NewsItem[]): NewsItem[] {
+  const kept: NewsItem[] = []
+  for (const item of items) {
+    if (!kept.some(k => isSameStory(k.title, item.title))) kept.push(item)
+  }
+  return kept
+}
+
+// Geo terms excluded from topic relevance check
+const GEO_STOP_TERMS = new Set([
+  'india', 'china', 'united', 'states', 'kingdom', 'europe', 'middle',
+  'east', 'southeast', 'asia', 'africa', 'japan', 'brazil', 'germany',
+  'france', 'australia', 'singapore', 'indonesia', 'thailand', 'vietnam',
+  'malaysia', 'saudi', 'arabia', 'emirates', 'north', 'south', 'west',
+])
+
+function isTopicRelevant(title: string, rawQuery: string): boolean {
+  const t = title.toLowerCase()
+  const terms = rawQuery.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/)
+    .filter(w => w.length > 3 && !GEO_STOP_TERMS.has(w))
+  if (terms.length === 0) return true
+  return terms.some(term => t.includes(term))
+}
 
 const GEO_ALIASES: Record<string, string[]> = {
   'United States': ['us', 'u.s.', 'united states', 'america', 'american'],
@@ -164,10 +211,11 @@ const GEO_ALIASES: Record<string, string[]> = {
   'China': ['china', 'chinese'],
 }
 
-function isDealArticle(title: string, geography?: string): boolean {
+function isDealArticle(title: string, geography?: string, rawQuery?: string): boolean {
   const t = title.toLowerCase()
   if (NOISE_PATTERNS.some(p => t.includes(p))) return false
   if (!DEAL_KEYWORDS.some(kw => t.includes(kw))) return false
+  if (rawQuery && !isTopicRelevant(title, rawQuery)) return false
   // If geography is known, require at least one geo term in the title to filter cross-geo noise
   if (geography && geography !== 'Other') {
     const aliases = GEO_ALIASES[geography] ?? [geography.toLowerCase()]
@@ -196,26 +244,30 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
   const geoAliases = geography !== 'Other' ? (GEO_ALIASES[geography] ?? [geography.toLowerCase()]) : null
 
-  const seen = new Set<string>()
-  const items: NewsItem[] = []
+  const seenUrls = new Set<string>()
+  const rawItems: NewsItem[] = []
   for (const batch of batches) {
     for (const item of batch) {
-      if (!seen.has(item.url) && item.pub >= cutoff365) {
+      if (!seenUrls.has(item.url) && item.pub >= cutoff365) {
         // Drop items where the title clearly refers to a different geography
         if (geoAliases) {
           const t = item.title.toLowerCase()
           const hasGeo = geoAliases.some(a => t.includes(a))
-          // Only exclude if title explicitly names a DIFFERENT known country
           const otherGeos = ['india', 'china', 'uk', 'germany', 'france', 'australia', 'singapore', 'uae', 'saudi']
             .filter(g => !geoAliases.includes(g))
           const hasOtherGeo = otherGeos.some(g => t.includes(g))
           if (hasOtherGeo && !hasGeo) continue
         }
-        seen.add(item.url)
-        items.push(item)
+        // Drop off-topic articles (e.g. political "defence" for "Defence in India")
+        if (!isTopicRelevant(item.title, rawQuery)) continue
+        seenUrls.add(item.url)
+        rawItems.push(item)
       }
     }
   }
+
+  // Deduplicate same story reported by multiple outlets (≥4 shared content words)
+  const items = deduplicateByContent(rawItems)
 
   const monthMap = new Map<string, number>()
   let count30d = 0
@@ -242,8 +294,8 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
   const sorted = [...items].sort((a, b) => b.pub.getTime() - a.pub.getTime())
 
-  // Evidence links: only actual deal articles shown to the user, geo-filtered
-  const dealItems = sorted.filter(item => isDealArticle(item.title, geography))
+  // Evidence links: only actual deal articles shown to the user, geo + topic filtered
+  const dealItems = sorted.filter(item => isDealArticle(item.title, geography, rawQuery))
   const evidenceItems = (dealItems.length >= 3 ? dealItems : sorted)
     .slice(0, 5)
     .map(({ pub: _, ...rest }) => rest)

@@ -229,11 +229,18 @@ function StrengthDial({ value = 8, max = 50, accent = '#8C7E6F' }: { value?: num
 
 // ── SignalBoard ────────────────────────────────────────────────────────────────
 
-function SignalBoard({ onAnalyse, onPin, isMobile }: { onAnalyse: (t: string) => void; onPin: (s: string, g: string) => void; isMobile: boolean }) {
+function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
+  onAnalyse: (t: string) => void; onPin: (s: string, g: string) => void
+  isMobile: boolean; preset?: { sector: string; geo: string } | null
+}) {
   const [sector, setSector] = useState('')
   const [geo, setGeo] = useState('')
   const [shuffle, setShuffle] = useState(0)
   const ready = !!(sector && geo)
+
+  useEffect(() => {
+    if (preset) { setSector(preset.sector); setGeo(preset.geo) }
+  }, [preset])
 
   const sectorPool = useMemo(() => {
     const pool = SECTORS_LIST.filter(s => s.label !== sector)
@@ -367,9 +374,15 @@ const NOTE_COLORS: Record<string, { bg: string; tape: string }> = {
   'COOLING':      { bg: '#E6E1D5', tape: 'rgba(140,126,111,.5)' },
 }
 
-function PadNote({ note, onMove, onRemove }: { note: PadNote; onMove: (id: string, p: { x: number; y: number }) => void; onRemove: (id: string) => void }) {
+function PadNote({ note, onMove, onRemove, onSelect }: {
+  note: PadNote
+  onMove: (id: string, p: { x: number; y: number }) => void
+  onRemove: (id: string) => void
+  onSelect: (text: string) => void
+}) {
   const [local, setLocal] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const startRef = useRef({ mx: 0, my: 0 })
   const colors = NOTE_COLORS[note.state] || NOTE_COLORS['QUIET']
 
@@ -379,27 +392,38 @@ function PadNote({ note, onMove, onRemove }: { note: PadNote; onMove: (id: strin
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); e.preventDefault()
   }
   const onPointerMove = (e: React.PointerEvent) => { if (dragging) setLocal({ x: e.clientX - startRef.current.mx, y: e.clientY - startRef.current.my }) }
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     if (!dragging) return
-    setDragging(false); onMove(note.id, { x: note.x + local.x, y: note.y + local.y }); setLocal({ x: 0, y: 0 })
+    const dx = e.clientX - startRef.current.mx
+    const dy = e.clientY - startRef.current.my
+    const moved = Math.sqrt(dx * dx + dy * dy)
+    setDragging(false)
+    if (moved < 8) {
+      onSelect(note.text)
+    } else {
+      onMove(note.id, { x: note.x + local.x, y: note.y + local.y })
+    }
+    setLocal({ x: 0, y: 0 })
   }
 
   return (
     <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{ position: 'absolute', left: note.x + local.x, top: note.y + local.y, width: 175, minHeight: 110, background: colors.bg, padding: '14px 14px 12px', borderRadius: 2,
-        boxShadow: dragging ? '0 24px 40px -16px rgba(43,37,32,.4)' : '0 8px 18px -10px rgba(43,37,32,.3), 0 1px 0 rgba(255,255,255,.5) inset',
-        transform: `rotate(${note.tilt}deg) ${dragging ? 'scale(1.02)' : ''}`,
-        transition: dragging ? 'none' : 'transform .25s, box-shadow .25s', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none', zIndex: dragging ? 30 : 1 }}>
+        boxShadow: dragging ? '0 24px 40px -16px rgba(43,37,32,.4)' : hovered ? '0 12px 28px -10px rgba(43,37,32,.35), 0 0 0 2px rgba(124,181,24,.5)' : '0 8px 18px -10px rgba(43,37,32,.3), 0 1px 0 rgba(255,255,255,.5) inset',
+        transform: `rotate(${note.tilt}deg) ${dragging ? 'scale(1.02)' : hovered ? 'scale(1.02) translateY(-2px)' : ''}`,
+        transition: dragging ? 'none' : 'transform .18s, box-shadow .18s', cursor: dragging ? 'grabbing' : 'pointer', userSelect: 'none', touchAction: 'none', zIndex: dragging ? 30 : hovered ? 20 : 1 }}>
       <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%) rotate(-2deg)', width: 70, height: 18, background: colors.tape, boxShadow: '0 2px 4px rgba(0,0,0,.08)' }} />
       <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', color: 'rgba(43,37,32,.55)' }}>{note.state}</div>
       <div className="serif" style={{ fontSize: 15, lineHeight: 1.25, marginTop: 6, color: 'var(--ink)' }}>{note.text}</div>
       <div className="mono" style={{ marginTop: 10, fontSize: 10, color: 'rgba(43,37,32,.55)', letterSpacing: '.06em' }}>{note.deals30}d/30 · {note.deals90}d/90 · {note.media}m</div>
-      <button onClick={() => onRemove(note.id)} style={{ position: 'absolute', top: 6, right: 6, appearance: 'none', border: 0, background: 'transparent', color: 'rgba(43,37,32,.4)', fontSize: 14, cursor: 'default', padding: 4 }}>×</button>
+      {hovered && <div className="mono" style={{ marginTop: 6, fontSize: 8, letterSpacing: '.12em', color: 'rgba(124,181,24,.8)' }}>TAP TO LOAD ↑</div>}
+      <button onClick={e => { e.stopPropagation(); onRemove(note.id) }} style={{ position: 'absolute', top: 6, right: 6, appearance: 'none', border: 0, background: 'transparent', color: 'rgba(43,37,32,.4)', fontSize: 14, cursor: 'default', padding: 4 }}>×</button>
     </div>
   )
 }
 
-function ThesisPad({ notes, setNotes, isMobile }: { notes: PadNote[]; setNotes: React.Dispatch<React.SetStateAction<PadNote[]>>; isMobile: boolean }) {
+function ThesisPad({ notes, setNotes, isMobile, onSelect }: { notes: PadNote[]; setNotes: React.Dispatch<React.SetStateAction<PadNote[]>>; isMobile: boolean; onSelect: (text: string) => void }) {
   const onMove = (id: string, p: { x: number; y: number }) => setNotes(prev => prev.map(n => n.id === id ? { ...n, ...p } : n))
   const onRemove = (id: string) => setNotes(prev => prev.filter(n => n.id !== id))
   const boardH = isMobile ? 220 : 320
@@ -423,7 +447,7 @@ function ThesisPad({ notes, setNotes, isMobile }: { notes: PadNote[]; setNotes: 
             </div>
           ) : (
             <div style={{ position: 'absolute', inset: 32 }}>
-              {notes.map(n => <PadNote key={n.id} note={n} onMove={onMove} onRemove={onRemove} />)}
+              {notes.map(n => <PadNote key={n.id} note={n} onMove={onMove} onRemove={onRemove} onSelect={onSelect} />)}
             </div>
           )}
         </div>
@@ -634,6 +658,7 @@ export default function HomePage() {
   const [sectorsLoading, setSectorsLoading] = useState(true)
   const [underratedLoading, setUnderratedLoading] = useState(true)
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
+  const [padPreset, setPadPreset] = useState<{ sector: string; geo: string } | null>(null)
   const [{ dateStr }] = useState(() => getMarketStatus())
   const isMobile = useIsMobile()
 
@@ -648,6 +673,11 @@ export default function HomePage() {
   }, [padNotes])
 
   const handleAnalyse = (thesis: string) => router.push(`/results?thesis=${encodeURIComponent(thesis)}`)
+
+  const handlePadSelect = (text: string) => {
+    const idx = text.lastIndexOf(' in ')
+    if (idx > 0) setPadPreset({ sector: text.slice(0, idx).trim(), geo: text.slice(idx + 4).trim() })
+  }
 
   const handlePin = (sector: string, geo: string) => {
     setPadNotes(prev => [...prev, {
@@ -676,8 +706,8 @@ export default function HomePage() {
 
       <main style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '4px 14px 48px' : '8px 32px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 24 }}>
-          <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} />
-          <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} />
+          <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} preset={padPreset} />
+          <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} onSelect={handlePadSelect} />
           <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />
           <MomentumPanel data={underrated} loading={underratedLoading} onSelect={handleAnalyse} isMobile={isMobile} />
         </div>
