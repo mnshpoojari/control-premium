@@ -463,7 +463,7 @@ function SectorCard({ rank, sector, count_30d, count_90d, onClick }: { rank: num
 
   return (
     <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ flex: '1 1 0', minWidth: 0, textAlign: 'left', background: 'var(--paper)', borderRadius: 14, position: 'relative', overflow: 'hidden',
+      style={{ width: '100%', textAlign: 'left', background: 'var(--paper)', borderRadius: 14, position: 'relative', overflow: 'hidden',
         border: `1px solid ${hov ? 'rgba(43,37,32,.22)' : 'rgba(43,37,32,.10)'}`,
         boxShadow: hov ? '0 20px 36px -20px rgba(43,37,32,.3), 0 1px 0 rgba(255,255,255,.6) inset' : '0 10px 24px -18px rgba(43,37,32,.25), 0 1px 0 rgba(255,255,255,.6) inset',
         padding: '18px 18px 16px', cursor: 'default', transform: hov ? 'translateY(-2px)' : 'none', transition: 'all .18s' }}>
@@ -507,11 +507,21 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
           </button>
         )}
       </div>
-      {/* On mobile: vertical stack. On desktop: horizontal flex */}
-      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 14 }}>
+      {/* On mobile: horizontal scroll carousel. On desktop: horizontal flex */}
+      <div style={{
+        display: 'flex', flexDirection: 'row', gap: 14,
+        overflowX: isMobile ? 'auto' : 'visible',
+        paddingBottom: isMobile ? 6 : 0,
+        scrollSnapType: isMobile ? 'x mandatory' : 'none',
+        WebkitOverflowScrolling: 'touch',
+      }}>
         {loading
-          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: '1 1 0', height: isMobile ? 100 : 220, borderRadius: 14, background: 'var(--paper)' }} />)
-          : showing.map((s, i) => <SectorCard key={s.sector} rank={i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />)
+          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: isMobile ? '0 0 78vw' : '1 1 0', height: 220, borderRadius: 14, background: 'var(--paper)', scrollSnapAlign: 'start' }} />)
+          : showing.map((s, i) => (
+              <div key={s.sector} style={{ flex: isMobile ? '0 0 78vw' : '1 1 0', minWidth: 0, scrollSnapAlign: 'start' }}>
+                <SectorCard rank={i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />
+              </div>
+            ))
         }
       </div>
     </div>
