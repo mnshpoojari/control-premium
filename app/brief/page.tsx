@@ -335,7 +335,6 @@ export default function BriefPage() {
 
   const blocks = brief ? parseContent(brief.content) : []
   const deals = blocks.filter((b): b is Extract<Block, { type: 'deal' }> => b.type === 'deal')
-  const summaryParas = blocks.filter(b => b.type === 'para').slice(0, 3) as Extract<Block, { type: 'para' }>[]
 
   const topMomentum = underrated[0]?.momentum ?? 1
   const marketState = topMomentum >= 2 ? 'EARLY SIGNAL' : topSectors[0] && computeAccel(topSectors[0].count_30d, topSectors[0].count_90d) > 15 ? 'CONSENSUS' : 'QUIET'
@@ -410,41 +409,48 @@ export default function BriefPage() {
             {/* Body: single column on mobile, two-column on desktop */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap: isMobile ? 24 : 32, alignItems: 'start' }}>
 
-              {/* LEFT: Main content */}
+              {/* LEFT: Full brief in document order */}
               <div>
-                {summaryParas.length > 0 && (
-                  <div style={{ marginBottom: 28 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>EXECUTIVE SUMMARY</span>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                    </div>
-                    {summaryParas.map((b, i) => (
-                      <p key={i} style={{
-                        fontFamily: `var(--font-sans, 'Instrument Sans', sans-serif)`,
-                        fontSize: isMobile ? '1rem' : '1.05rem', lineHeight: 1.8, color: 'var(--ink-soft)', margin: '0 0 14px',
-                      }}>
-                        {i === 0 && (
-                          <span className="serif" style={{ float: 'left', fontSize: isMobile ? '3rem' : '3.8rem', lineHeight: .8, marginRight: 8, marginTop: 6, color: '#B83A26', fontWeight: 400 }}>
-                            {b.text[0]}
-                          </span>
-                        )}
-                        {i === 0 ? b.text.slice(1) : renderInline(b.text)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                {deals.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>CONFIRMED TRANSACTIONS</span>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                    </div>
-                    {deals.map((d, i) => <DealItem key={i} index={i + 1} headline={d.headline} url={d.url} body={d.body} />)}
-                  </div>
-                )}
+                {(() => {
+                  let dealIdx = 0
+                  let firstPara = true
+                  return blocks.map((block, i) => {
+                    if (block.type === 'section') {
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '32px 0 18px' }}>
+                          <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>{block.text.toUpperCase()}</span>
+                          <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                        </div>
+                      )
+                    }
+                    if (block.type === 'deal') {
+                      dealIdx++
+                      return <DealItem key={i} index={dealIdx} headline={block.headline} url={block.url} body={block.body} />
+                    }
+                    if (block.type === 'para') {
+                      const isFirst = firstPara
+                      if (firstPara) firstPara = false
+                      return (
+                        <p key={i} style={{
+                          fontFamily: `var(--font-sans, 'Instrument Sans', sans-serif)`,
+                          fontSize: isMobile ? '1rem' : '1.06rem',
+                          lineHeight: 1.85,
+                          color: 'var(--ink-soft)',
+                          margin: '0 0 18px',
+                        }}>
+                          {isFirst && (
+                            <span className="serif" style={{ float: 'left', fontSize: isMobile ? '3rem' : '3.8rem', lineHeight: .8, marginRight: 8, marginTop: 6, color: '#B83A26', fontWeight: 400 }}>
+                              {block.text[0]}
+                            </span>
+                          )}
+                          {isFirst ? block.text.slice(1) : renderInline(block.text)}
+                        </p>
+                      )
+                    }
+                    return null
+                  })
+                })()}
               </div>
 
               {/* RIGHT: Sidebar — rendered below on mobile */}
@@ -465,24 +471,6 @@ export default function BriefPage() {
                     ) : (
                       movers.map((m, i) => <TodaysMover key={i} sector={m.sector} accel={m.accel} />)
                     )}
-                  </div>
-                )}
-
-                {(blocks.filter(b => b.type === 'para') as Extract<Block, { type: 'para' }>[]).slice(3).length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600 }}>WATCHLIST</span>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {(blocks.filter(b => b.type === 'para') as Extract<Block, { type: 'para' }>[]).slice(3, 7).map((b, i) => (
-                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                          <span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(43,37,32,.35)', flexShrink: 0, marginTop: 4, display: 'inline-block' }} />
-                          <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.65, color: 'var(--ink-soft)' }}>{renderInline(b.text)}</p>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )}
 
