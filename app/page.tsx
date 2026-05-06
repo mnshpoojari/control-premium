@@ -111,13 +111,15 @@ function TypeOrDrop({ label, value, onChange, options, color, accent }: {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 2 }}>{label}</div>
           <input ref={inputRef} value={text}
-            onChange={e => { setText(e.target.value); setOpen(true); setHoverIdx(0); if (!e.target.value) onChange('') }}
-            onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} onKeyDown={onKey}
+            onChange={e => { setText(e.target.value); onChange(e.target.value); setOpen(true); setHoverIdx(0) }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => { setOpen(false); onChange(text.trim()) }, 150)}
+            onKeyDown={onKey}
             placeholder="type or pick…"
             style={{ border: 0, outline: 'none', background: 'transparent', font: `400 18px/1.2 var(--font-serif, serif)`, color: 'var(--ink)', width: '100%', padding: '2px 0' }}
           />
         </div>
-        {filled && <button onMouseDown={e => { e.preventDefault(); onChange(''); setText('') }} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'var(--ink-mute)', fontSize: 18, cursor: 'default', padding: 4, lineHeight: 1 }}>×</button>}
+        {filled && <button onMouseDown={e => { e.preventDefault(); setText(''); onChange('') }} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'var(--ink-mute)', fontSize: 18, cursor: 'default', padding: 4, lineHeight: 1 }}>×</button>}
       </div>
       {open && filtered.length > 0 && (
         <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50, background: '#FAF8F3', border: '1px solid rgba(43,37,32,.18)', borderRadius: 10, boxShadow: '0 14px 30px -16px rgba(43,37,32,.35)', padding: 6, maxHeight: 220, overflowY: 'auto' }}>
