@@ -7,7 +7,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET() {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/sector_trends?select=sector,count_30d,explanation&order=count_30d.desc&limit=3`,
+    `${SUPABASE_URL}/rest/v1/sector_trends?select=sector,count_30d,count_90d&order=count_30d.desc&limit=6`,
     {
       headers: {
         apikey: SUPABASE_KEY,
