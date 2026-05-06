@@ -190,38 +190,38 @@ function StatsRow({ dealCount, sectorCount, gainCount, quietCount, isMobile }: {
 // ── Deal Item ─────────────────────────────────────────────────────────────────
 
 function DealItem({ index, headline, url, body }: { index: number; headline: string; url: string; body: string }) {
-  const [open, setOpen] = useState(index === 0)
+  const [open, setOpen] = useState(false)
   const domain = getDomain(url)
   const type = getDealType(headline)
 
   return (
-    <div style={{ padding: '18px 0', borderTop: '1px solid rgba(43,37,32,.12)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+    <div style={{ padding: '20px 0', borderTop: '1px solid rgba(43,37,32,.12)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-mute)' }}>
-          № {String(index).padStart(2, '0')} · {domain.toUpperCase()} · {type}
+          № {String(index).padStart(2, '0')} · {type}
         </span>
-        <button onClick={() => setOpen(o => !o)} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', width: 22, height: 22, borderRadius: '50%', cursor: 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--ink-soft)', flexShrink: 0 }}>
-          {open ? '×' : '+'}
-        </button>
+        {body && (
+          <button onClick={() => setOpen(o => !o)} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', padding: '2px 10px', borderRadius: 999, cursor: 'default', fontSize: 11, color: 'var(--ink-soft)', fontFamily: 'Instrument Sans', flexShrink: 0 }}>
+            {open ? 'less' : 'more'}
+          </button>
+        )}
       </div>
-      <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
-        <div className="serif" style={{ fontSize: 20, lineHeight: 1.25, color: 'var(--ink)', marginBottom: open && body ? 10 : 0, transition: 'color .15s' }}
+      {/* Headline — always visible, links to source */}
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', marginBottom: 10 }}>
+        <div className="serif" style={{ fontSize: 24, lineHeight: 1.25, color: 'var(--ink)', transition: 'color .15s' }}
           onMouseEnter={e => (e.currentTarget.style.color = '#B83A26')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink)')}>
           {headline}
-          <span style={{ marginLeft: 8, fontSize: 14, opacity: .5, color: '#7CB518' }}>↗</span>
         </div>
       </a>
+      {/* Read More — always visible below headline */}
+      <a href={url} target="_blank" rel="noopener noreferrer"
+        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--accent-deep)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.06em', borderBottom: '1px solid rgba(124,181,24,.35)', paddingBottom: 1 }}>
+        Read more at {domain} ↗
+      </a>
+      {/* Body — expanded on demand */}
       {open && body && (
-        <p style={{ margin: '8px 0 0', fontSize: '0.9rem', lineHeight: 1.75, color: 'var(--ink-soft)' }}>{body}</p>
-      )}
-      {open && (
-        <div style={{ marginTop: 10 }}>
-          <a href={url} target="_blank" rel="noopener noreferrer"
-            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--accent-deep)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.04em', borderBottom: '1px solid rgba(124,181,24,.4)' }}>
-            {domain} ↗
-          </a>
-        </div>
+        <p style={{ margin: '12px 0 0', fontSize: '0.95rem', lineHeight: 1.8, color: 'var(--ink-soft)' }}>{body}</p>
       )}
     </div>
   )
@@ -353,12 +353,13 @@ export default function BriefPage() {
     ...underrated.filter(u => !topSectors.slice(0, 3).some(s => s.sector === u.sector)).map(u => ({ sector: u.sector, accel: Math.round((u.momentum - 1) * 100) })),
   ].slice(0, 5)
 
-  const px = isMobile ? '16px' : '36px'
+  const px = isMobile ? '16px' : '28px'
+  const maxW = 1160
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF8F3' }}>
       {/* Nav bar */}
-      <div style={{ maxWidth: 1320, margin: '0 auto', padding: `16px ${px} 0` }}>
+      <div style={{ maxWidth: maxW, margin: '0 auto', padding: `16px ${px} 0` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} style={{ appearance: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'default', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
             <span className="serif" style={{ fontSize: '1.35rem', color: 'var(--ink)', lineHeight: 1 }}>
@@ -372,7 +373,7 @@ export default function BriefPage() {
       </div>
 
       {/* Masthead */}
-      <div style={{ maxWidth: 1320, margin: '0 auto', padding: `18px ${px}` }}>
+      <div style={{ maxWidth: maxW, margin: '0 auto', padding: `18px ${px}` }}>
         <div style={{ height: 1, background: 'rgba(43,37,32,.2)', marginBottom: 16 }} />
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
           <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.22em', color: 'var(--ink-mute)', marginBottom: 10 }}>THE PREMIA DESK</div>
@@ -385,7 +386,7 @@ export default function BriefPage() {
       </div>
 
       {/* Main content */}
-      <div style={{ maxWidth: 1320, margin: '0 auto', padding: `0 ${px} 60px` }}>
+      <div style={{ maxWidth: maxW, margin: '0 auto', padding: `0 ${px} 60px` }}>
         {loading ? (
           <div style={{ paddingTop: 24 }}><Skeleton /></div>
         ) : !brief ? (
@@ -407,7 +408,7 @@ export default function BriefPage() {
             />
 
             {/* Body: single column on mobile, two-column on desktop */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap: isMobile ? 24 : 32, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 260px', gap: isMobile ? 24 : 28, alignItems: 'start' }}>
 
               {/* LEFT: Full brief in document order */}
               <div>
@@ -417,10 +418,12 @@ export default function BriefPage() {
                   return blocks.map((block, i) => {
                     if (block.type === 'section') {
                       return (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '32px 0 18px' }}>
-                          <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
-                          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>{block.text.toUpperCase()}</span>
-                          <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                        <div key={i} style={{ margin: '36px 0 20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
+                            <div style={{ width: 28, height: 2, background: 'var(--terra)', borderRadius: 2, flexShrink: 0 }} />
+                            <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                          </div>
+                          <h2 className="serif" style={{ margin: 0, fontSize: 28, lineHeight: 1.1, color: 'var(--ink)', letterSpacing: '-.01em' }}>{block.text}</h2>
                         </div>
                       )
                     }
