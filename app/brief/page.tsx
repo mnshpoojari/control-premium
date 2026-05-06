@@ -28,40 +28,29 @@ type Block =
 function parseContent(raw: string): Block[] {
   const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0)
   const skip = new Set<number>()
-
-  type DealRange = { hi: number; ui: number; bi: number }
-  const deals: DealRange[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (/^https?:\/\//.test(line) || /^\*\*[^*]+\*\*$/.test(line) || line.length > 150) continue
-    for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
-      if (/^https?:\/\//.test(lines[j])) {
-        let bi = -1
-        const afterUrl = j + 1
-        if (afterUrl < lines.length && lines[afterUrl].length > 40 && !lines[afterUrl].startsWith('**') && !/^https?:\/\//.test(lines[afterUrl])) {
-          bi = afterUrl
-        }
-        deals.push({ hi: i, ui: j, bi })
-        skip.add(j)
-        if (bi >= 0) skip.add(bi)
-        break
-      }
-    }
-  }
-
-  const dealHeadlineIdx = new Map(deals.map(d => [d.hi, d]))
-
   const blocks: Block[] = []
+
   for (let i = 0; i < lines.length; i++) {
     if (skip.has(i)) continue
     const line = lines[i]
-    if (/^\*\*[^*]+\*\*$/.test(line)) { blocks.push({ type: 'section', text: line.slice(2, -2) }); continue }
-    if (/^https?:\/\//.test(line)) continue
-    if (dealHeadlineIdx.has(i)) {
-      const d = dealHeadlineIdx.get(i)!
-      blocks.push({ type: 'deal', headline: line, url: lines[d.ui], body: d.bi >= 0 ? lines[d.bi] : '' })
+
+    // Section header: **Title**
+    if (/^\*\*[^*]+\*\*$/.test(line)) {
+      blocks.push({ type: 'section', text: line.slice(2, -2) })
       continue
     }
+
+    // Bare URL line — already consumed by look-ahead below, skip
+    if (/^https?:\/\//.test(line)) continue
+
+    // If the very next line is a bare URL, this paragraph is a sourced item
+    const nextLine = lines[i + 1]
+    if (nextLine && /^https?:\/\//.test(nextLine)) {
+      skip.add(i + 1)
+      blocks.push({ type: 'deal', headline: line, url: nextLine, body: '' })
+      continue
+    }
+
     blocks.push({ type: 'para', text: line })
   }
   return blocks
@@ -190,38 +179,25 @@ function StatsRow({ dealCount, sectorCount, gainCount, quietCount, isMobile }: {
 // ── Deal Item ─────────────────────────────────────────────────────────────────
 
 function DealItem({ index, headline, url, body }: { index: number; headline: string; url: string; body: string }) {
-  const [open, setOpen] = useState(false)
   const domain = getDomain(url)
   const type = getDealType(headline)
 
   return (
     <div style={{ padding: '20px 0', borderTop: '1px solid rgba(43,37,32,.12)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-mute)' }}>
-          № {String(index).padStart(2, '0')} · {type}
-        </span>
-        {body && (
-          <button onClick={() => setOpen(o => !o)} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', padding: '2px 10px', borderRadius: 999, cursor: 'default', fontSize: 11, color: 'var(--ink-soft)', fontFamily: 'Instrument Sans', flexShrink: 0 }}>
-            {open ? 'less' : 'more'}
-          </button>
-        )}
-      </div>
-      {/* Headline — always visible, links to source */}
-      <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', marginBottom: 10 }}>
-        <div className="serif" style={{ fontSize: 24, lineHeight: 1.25, color: 'var(--ink)', transition: 'color .15s' }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#B83A26')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink)')}>
-          {headline}
-        </div>
-      </a>
-      {/* Read More — always visible below headline */}
+      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-mute)', display: 'block', marginBottom: 10 }}>
+        № {String(index).padStart(2, '0')} · {type}
+      </span>
+      {/* Paragraph prose — full snapshot text */}
+      <p style={{ margin: '0 0 12px', fontSize: '1rem', lineHeight: 1.85, color: 'var(--ink-soft)', fontFamily: `var(--font-sans, 'Instrument Sans', sans-serif)` }}>
+        {renderInline(headline)}
+      </p>
+      {/* Read More — always visible */}
       <a href={url} target="_blank" rel="noopener noreferrer"
-        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--accent-deep)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.06em', borderBottom: '1px solid rgba(124,181,24,.35)', paddingBottom: 1 }}>
+        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--accent-deep)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.06em', borderBottom: '1px solid rgba(124,181,24,.4)', paddingBottom: 1 }}>
         Read more at {domain} ↗
       </a>
-      {/* Body — expanded on demand */}
-      {open && body && (
-        <p style={{ margin: '12px 0 0', fontSize: '0.95rem', lineHeight: 1.8, color: 'var(--ink-soft)' }}>{body}</p>
+      {body && (
+        <p style={{ margin: '12px 0 0', fontSize: '0.9rem', lineHeight: 1.8, color: 'var(--ink-mute)' }}>{body}</p>
       )}
     </div>
   )
