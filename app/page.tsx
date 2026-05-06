@@ -624,7 +624,7 @@ export default function HomePage() {
   const [sectorsLoading, setSectorsLoading] = useState(true)
   const [underratedLoading, setUnderratedLoading] = useState(true)
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
-  const [{ dateStr, open: mktOpen }] = useState(() => getMarketStatus())
+  const [{ dateStr }] = useState(() => getMarketStatus())
   const isMobile = useIsMobile()
 
   useEffect(() => {
@@ -654,10 +654,8 @@ export default function HomePage() {
           Premia<span style={{ color: 'var(--terra)', fontSize: '0.65em', verticalAlign: 'super', marginLeft: 1 }}>·</span>
         </span>
         {!isMobile && (
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '.12em', color: 'var(--ink-mute)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>{dateStr}</span>
-            <span>·</span>
-            <span style={{ color: mktOpen ? '#7CB518' : 'var(--ink-mute)' }}>MARKETS {mktOpen ? 'OPEN' : 'CLOSED'}</span>
+          <div className="mono" style={{ fontSize: 11, letterSpacing: '.12em', color: 'var(--ink-mute)' }}>
+            {dateStr}
           </div>
         )}
         <button onClick={() => router.push('/brief')} className="btn-glow"
