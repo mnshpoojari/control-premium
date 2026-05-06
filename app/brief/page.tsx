@@ -1,45 +1,67 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Brief { date: string; content: string; generated_at: string }
+interface SectorData { sector: string; count_30d: number; count_90d: number }
+interface UnderratedData { sector: string; count_30d: number; momentum: number }
+
+function useIsMobile(breakpoint = 700) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+  return isMobile
+}
 
 // ── Content parser ────────────────────────────────────────────────────────────
 
-function parseContent(raw: string) {
-  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+type Block =
+  | { type: 'section'; text: string }
+  | { type: 'deal'; headline: string; url: string; body: string }
+  | { type: 'para'; text: string }
 
-  // Find URL for each headline (scan within 7 lines)
-  const urlFor = new Map<number, string>()
-  const urlLines = new Set<number>()
+function parseContent(raw: string): Block[] {
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  const skip = new Set<number>()
+
+  type DealRange = { hi: number; ui: number; bi: number }
+  const deals: DealRange[] = []
   for (let i = 0; i < lines.length; i++) {
-    if (/^https?:\/\//.test(lines[i])) continue
-    if (lines[i].length > 130) continue
-    if (/^\*\*[^*]+\*\*$/.test(lines[i])) continue
-    for (let j = i + 1; j < Math.min(i + 7, lines.length); j++) {
-      if (/^https?:\/\//.test(lines[j])) { urlFor.set(i, lines[j]); urlLines.add(j); break }
+    const line = lines[i]
+    if (/^https?:\/\//.test(line) || /^\*\*[^*]+\*\*$/.test(line) || line.length > 150) continue
+    for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
+      if (/^https?:\/\//.test(lines[j])) {
+        let bi = -1
+        const afterUrl = j + 1
+        if (afterUrl < lines.length && lines[afterUrl].length > 40 && !lines[afterUrl].startsWith('**') && !/^https?:\/\//.test(lines[afterUrl])) {
+          bi = afterUrl
+        }
+        deals.push({ hi: i, ui: j, bi })
+        skip.add(j)
+        if (bi >= 0) skip.add(bi)
+        break
+      }
     }
   }
 
-  type Block = { type: 'section'; text: string } | { type: 'deal'; headline: string; url: string } | { type: 'para'; text: string }
+  const dealHeadlineIdx = new Map(deals.map(d => [d.hi, d]))
+
   const blocks: Block[] = []
-
   for (let i = 0; i < lines.length; i++) {
-    if (urlLines.has(i)) continue
+    if (skip.has(i)) continue
     const line = lines[i]
-
-    if (/^\*\*[^*]+\*\*$/.test(line)) {
-      blocks.push({ type: 'section', text: line.slice(2, -2) })
-      continue
-    }
+    if (/^\*\*[^*]+\*\*$/.test(line)) { blocks.push({ type: 'section', text: line.slice(2, -2) }); continue }
     if (/^https?:\/\//.test(line)) continue
-
-    if (urlFor.has(i)) {
-      blocks.push({ type: 'deal', headline: line, url: urlFor.get(i)! })
+    if (dealHeadlineIdx.has(i)) {
+      const d = dealHeadlineIdx.get(i)!
+      blocks.push({ type: 'deal', headline: line, url: lines[d.ui], body: d.bi >= 0 ? lines[d.bi] : '' })
       continue
     }
-
     blocks.push({ type: 'para', text: line })
   }
   return blocks
@@ -48,60 +70,247 @@ function parseContent(raw: string) {
 function renderInline(text: string): React.ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} style={{ color: 'var(--ink)', fontWeight: 600 }}>{part.slice(2, -2)}</strong>
+      ? <strong key={i} style={{ fontWeight: 600, color: 'var(--ink)' }}>{part.slice(2, -2)}</strong>
       : part
   )
 }
 
-// ── Broadsheet renderer ───────────────────────────────────────────────────────
+function getDomain(url: string) {
+  try { return new URL(url).hostname.replace('www.', '') } catch { return url }
+}
 
-function BriefContent({ content }: { content: string }) {
-  const blocks = parseContent(content)
+function getDealType(headline: string) {
+  const h = headline.toLowerCase()
+  if (h.includes('acquir') || h.includes(' buys ') || h.includes('merger') || h.includes('takeover')) return 'M&A'
+  if (h.includes('raises') || h.includes('closes') && h.includes('fund') || h.includes('fundrais')) return 'FUNDRAISE'
+  if (h.includes('roll-up') || h.includes('bolt-on') || h.includes('tuck-in')) return 'BOLT-ON'
+  if (h.includes('joint venture') || h.includes(' jv ')) return 'JV'
+  if (h.includes('ipo') || h.includes('listing')) return 'IPO'
+  if (h.includes('exits') || h.includes('sells stake') || h.includes('divests')) return 'EXIT'
+  return 'DEAL'
+}
+
+// ── Market Tempo Gauge ────────────────────────────────────────────────────────
+
+function MarketTempoGauge({ score, accent = '#7CB518' }: { score: number; accent?: string }) {
+  const W = 180, H = 100
+  const cx = W / 2, cy = H + 8, r = W / 2 - 8
+  const pct = Math.max(0, Math.min(1, score / 100))
+  const aN = Math.PI + (0 - Math.PI) * pct
+  const nx = cx + r * Math.cos(aN), ny = cy + r * Math.sin(aN)
+
+  const ticks = Array.from({ length: 11 }).map((_, i) => {
+    const a = Math.PI + (0 - Math.PI) * (i / 10)
+    const r1 = r - 2, r2 = r - (i % 5 === 0 ? 14 : 8)
+    return { x1: cx + r1 * Math.cos(a), y1: cy + r1 * Math.sin(a), x2: cx + r2 * Math.cos(a), y2: cy + r2 * Math.sin(a), strong: i % 5 === 0 }
+  })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {blocks.map((block, i) => {
-        if (block.type === 'section') {
-          return (
-            <div key={i} style={{ margin: '2.5rem 0 1rem', paddingTop: '1.5rem', borderTop: '1.5px solid rgba(43,37,32,.15)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ font: `600 10px var(--font-mono, monospace)`, letterSpacing: '.2em', color: 'var(--ink-mute)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>§</span>
-              <h2 style={{ fontFamily: `var(--font-serif, serif)`, color: 'var(--ink)', fontSize: '1.25rem', fontWeight: 400, margin: 0, letterSpacing: '-0.01em' }}>{block.text}</h2>
-            </div>
-          )
-        }
-
-        if (block.type === 'deal') {
-          let domain = block.url
-          try { domain = new URL(block.url).hostname.replace('www.', '') } catch (_) {}
-          return (
-            <a key={i} href={block.url} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'block', textDecoration: 'none', margin: '0 0 10px', padding: '14px 16px', borderRadius: 10, background: 'rgba(43,37,32,.04)', border: '1px solid rgba(43,37,32,.10)', transition: 'all .15s' }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(43,37,32,.07)'; el.style.borderColor = 'rgba(43,37,32,.18)' }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(43,37,32,.04)'; el.style.borderColor = 'rgba(43,37,32,.10)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <p style={{ margin: 0, font: '600 14px/1.4 Instrument Sans', color: 'var(--ink)' }}>{block.headline}</p>
-                <span style={{ color: 'var(--accent-deep)', fontSize: 16, opacity: .7, flexShrink: 0, marginTop: 1 }}>↗</span>
-              </div>
-              <div style={{ marginTop: 6, font: `500 11px var(--font-mono, monospace)`, color: 'var(--ink-mute)', letterSpacing: '.04em' }}>{domain}</div>
-            </a>
-          )
-        }
-
-        // paragraph
-        return (
-          <p key={i} style={{ fontFamily: 'Instrument Sans, sans-serif', color: 'var(--ink-soft)', lineHeight: 1.8, fontSize: '0.94rem', margin: '0 0 0.85rem', opacity: .9 }}>
-            {renderInline(block.text)}
-          </p>
-        )
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <svg width={W} height={H + 12} viewBox={`0 0 ${W} ${H + 12}`} style={{ display: 'block' }}>
+        <path d={`M 8 ${H + 8} A ${r} ${r} 0 0 1 ${W - 8} ${H + 8}`} fill="none" stroke="rgba(43,37,32,.12)" strokeWidth="8" strokeLinecap="round" />
+        <path d={`M 8 ${H + 8} A ${r} ${r} 0 0 1 ${nx} ${ny}`} fill="none" stroke={accent} strokeWidth="8" strokeLinecap="round" />
+        {ticks.map((t, i) => <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={t.strong ? 'rgba(43,37,32,.45)' : 'rgba(43,37,32,.2)'} strokeWidth={t.strong ? 1.5 : 1} />)}
+        <circle cx={nx} cy={ny} r={10} fill="#FAF8F3" stroke={accent} strokeWidth="3" />
+        <circle cx={nx} cy={ny} r={4} fill={accent} />
+        <text x={cx} y={H - 8} textAnchor="middle" fontFamily="var(--font-serif, serif)" fontSize="32" fontWeight="400" fill="var(--ink)">{score}</text>
+      </svg>
+      <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginTop: -4 }}>MARKET TEMPO</div>
     </div>
   )
 }
 
-function BriefSkeleton() {
+// ── Signal Card ───────────────────────────────────────────────────────────────
+
+const STATE_META: Record<string, { color: string; bg: string; label: string; blurb: string }> = {
+  'EARLY SIGNAL': { color: '#7CB518', bg: 'rgba(163,230,53,.18)', label: 'EARLY SIGNAL', blurb: 'Capital is forming faster than narrative.' },
+  'CONSENSUS':    { color: '#A88B4C', bg: 'rgba(168,139,76,.16)', label: 'CONSENSUS',    blurb: 'Deals and coverage are moving in step.' },
+  'HYPE':         { color: '#B83A26', bg: 'rgba(184,58,38,.12)', label: 'HYPE',          blurb: 'Coverage is outrunning capital deployment.' },
+  'QUIET':        { color: '#8C7E6F', bg: 'rgba(140,126,111,.14)', label: 'QUIET',       blurb: 'Low activity across most tracked themes.' },
+}
+
+function SignalCard({ state, tempo, isMobile }: { state: string; tempo: number; isMobile: boolean }) {
+  const meta = STATE_META[state] || STATE_META['QUIET']
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {[88, 72, 96, 80, 60, 90, 68, 84, 76, 95, 65, 78].map((w, i) => (
+    <div className="paper" style={{ padding: isMobile ? '18px 16px' : '22px 26px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: isMobile ? 16 : 32, alignItems: 'center' }}>
+      <div className="pin" style={{ top: 10, left: 14 }} />
+      <div className="pin brass" style={{ top: 10, right: 14 }} />
+      <div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', borderRadius: 999, background: meta.bg, marginBottom: 12 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, display: 'inline-block' }} />
+          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.16em', color: meta.color, fontWeight: 600 }}>
+            TODAY · {meta.label}
+          </span>
+        </div>
+        <div className="serif" style={{ fontSize: isMobile ? 22 : 28, lineHeight: 1.2, color: 'var(--ink)' }}>{meta.blurb}</div>
+      </div>
+      {/* Show gauge inline on desktop, below text on mobile */}
+      <div style={{ display: 'flex', justifyContent: isMobile ? 'flex-start' : 'center' }}>
+        <MarketTempoGauge score={tempo} accent={meta.color} />
+      </div>
+    </div>
+  )
+}
+
+// ── Stats Row ─────────────────────────────────────────────────────────────────
+
+function StatsRow({ dealCount, sectorCount, gainCount, quietCount, isMobile }: { dealCount: number; sectorCount: number; gainCount: number; quietCount: number; isMobile: boolean }) {
+  const tiles = [
+    { label: 'CONFIRMED TRANSACTIONS', value: dealCount, sub: 'in today\'s brief' },
+    { label: 'SECTORS TRACKED',        value: sectorCount, sub: 'active deal flow' },
+    { label: 'GAINING MOMENTUM',       value: gainCount, sub: 'accelerating themes' },
+    { label: 'QUIET SECTORS',          value: quietCount, sub: '<1 deal · 30d' },
+  ]
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+      background: 'var(--paper)',
+      border: '1px solid rgba(43,37,32,.10)',
+      borderRadius: 14,
+      overflow: 'hidden',
+    }}>
+      {tiles.map((t, i) => (
+        <div key={i} style={{
+          padding: isMobile ? '14px 14px' : '18px 20px',
+          borderRight: isMobile
+            ? (i % 2 === 0 ? '1px solid rgba(43,37,32,.10)' : 'none')
+            : (i < tiles.length - 1 ? '1px solid rgba(43,37,32,.10)' : 'none'),
+          borderBottom: isMobile && i < 2 ? '1px solid rgba(43,37,32,.10)' : 'none',
+        }}>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 8, letterSpacing: '.14em', color: 'var(--ink-mute)', marginBottom: 6 }}>{t.label}</div>
+          <div className="num" style={{ fontSize: isMobile ? 36 : 44, lineHeight: 1, color: '#B83A26' }}>{t.value}</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 4 }}>{t.sub}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Deal Item ─────────────────────────────────────────────────────────────────
+
+function DealItem({ index, headline, url, body }: { index: number; headline: string; url: string; body: string }) {
+  const [open, setOpen] = useState(index === 0)
+  const domain = getDomain(url)
+  const type = getDealType(headline)
+
+  return (
+    <div style={{ padding: '18px 0', borderTop: '1px solid rgba(43,37,32,.12)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-mute)' }}>
+          № {String(index).padStart(2, '0')} · {domain.toUpperCase()} · {type}
+        </span>
+        <button onClick={() => setOpen(o => !o)} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', width: 22, height: 22, borderRadius: '50%', cursor: 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--ink-soft)', flexShrink: 0 }}>
+          {open ? '×' : '+'}
+        </button>
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+        <div className="serif" style={{ fontSize: 20, lineHeight: 1.25, color: 'var(--ink)', marginBottom: open && body ? 10 : 0, transition: 'color .15s' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#B83A26')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink)')}>
+          {headline}
+          <span style={{ marginLeft: 8, fontSize: 14, opacity: .5, color: '#7CB518' }}>↗</span>
+        </div>
+      </a>
+      {open && body && (
+        <p style={{ margin: '8px 0 0', fontSize: '0.9rem', lineHeight: 1.75, color: 'var(--ink-soft)' }}>{body}</p>
+      )}
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--accent-deep)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.04em', borderBottom: '1px solid rgba(124,181,24,.4)' }}>
+            {domain} ↗
+          </a>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Today's Movers ─────────────────────────────────────────────────────────────
+
+function computeAccel(c30: number, c90: number) {
+  return Math.round((c30 / 30 / Math.max((c90 - c30) / 60, 0.01) - 1) * 100)
+}
+
+function getMoverState(accel: number) {
+  if (accel >= 30) return 'EARLY SIGNAL'
+  if (accel >= 5) return 'CONSENSUS'
+  if (accel >= -10) return 'ESTABLISHED'
+  return 'COOLING'
+}
+
+const MOVER_COLORS: Record<string, { color: string; text: string }> = {
+  'EARLY SIGNAL': { color: '#7CB518', text: '#4a6b1a' },
+  'CONSENSUS':    { color: '#A88B4C', text: '#A88B4C' },
+  'ESTABLISHED':  { color: '#8C7E6F', text: '#8C7E6F' },
+  'COOLING':      { color: '#B83A26', text: '#B83A26' },
+}
+
+function TodaysMover({ sector, accel }: { sector: string; accel: number }) {
+  const state = getMoverState(accel)
+  const { color, text } = MOVER_COLORS[state] || MOVER_COLORS['ESTABLISHED']
+  return (
+    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.5)', border: '1px solid rgba(43,37,32,.10)', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ font: '500 14px Instrument Sans', color: 'var(--ink)', marginBottom: 3 }}>{sector}</div>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 9, letterSpacing: '.14em', color: text }}>{state}</div>
+        </div>
+        <div className="num" style={{ fontSize: 22, color: accel >= 0 ? '#7CB518' : '#B83A26', lineHeight: 1 }}>
+          {accel >= 0 ? '+' : ''}{accel}%
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Subscribe Form ────────────────────────────────────────────────────────────
+
+function SubscribeForm() {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'exists' | 'error'>('idle')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setStatus('loading')
+    try {
+      const res = await fetch('/api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim() }) })
+      const data = await res.json()
+      setStatus(data.message === 'already_subscribed' ? 'exists' : data.message === 'subscribed' ? 'done' : 'error')
+    } catch { setStatus('error') }
+  }
+
+  return (
+    <div style={{ background: '#2B2520', borderRadius: 12, padding: '22px 20px' }}>
+      <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 9, letterSpacing: '.2em', color: 'rgba(255,255,255,.45)', marginBottom: 10 }}>SUBSCRIBE</div>
+      <div className="serif" style={{ fontSize: 19, lineHeight: 1.25, color: 'rgba(255,255,255,.9)', marginBottom: 14 }}>The Brief in your inbox, every market morning.</div>
+      {status === 'done' ? (
+        <p style={{ fontSize: 13, color: '#A3E635', fontFamily: 'Instrument Sans' }}>You&apos;re in. See you tomorrow.</p>
+      ) : status === 'exists' ? (
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', fontFamily: 'Instrument Sans' }}>Already subscribed.</p>
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@firm.com" required
+            style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.85)', fontSize: 13, outline: 'none', fontFamily: 'Instrument Sans' }} />
+          <button type="submit" disabled={status === 'loading' || !email.trim()}
+            style={{ padding: '10px 16px', borderRadius: 8, border: 0, background: '#A3E635', color: '#1a1a1a', font: '600 13px Instrument Sans', cursor: 'default', flexShrink: 0, opacity: status === 'loading' ? .6 : 1 }}>
+            Join
+          </button>
+        </form>
+      )}
+      {status === 'error' && <p style={{ fontSize: 11, color: '#E8892A', marginTop: 6 }}>Something went wrong — try again.</p>}
+    </div>
+  )
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function Skeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[88, 72, 96, 80, 60, 90, 68, 84, 76, 95].map((w, i) => (
         <div key={i} className="shimmer" style={{ height: 14, width: `${w}%`, borderRadius: 4, background: 'rgba(43,37,32,.10)' }} />
       ))}
     </div>
@@ -114,102 +323,174 @@ export default function BriefPage() {
   const router = useRouter()
   const [brief, setBrief] = useState<Brief | null>(null)
   const [loading, setLoading] = useState(true)
+  const [topSectors, setTopSectors] = useState<SectorData[]>([])
+  const [underrated, setUnderrated] = useState<UnderratedData[]>([])
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     fetch('/api/brief/latest').then(r => r.json()).then(d => { setBrief(d); setLoading(false) }).catch(() => setLoading(false))
+    fetch('/api/top-sectors').then(r => r.json()).then(d => setTopSectors(Array.isArray(d) ? d : [])).catch(() => {})
+    fetch('/api/underrated-sectors').then(r => r.json()).then(d => setUnderrated(Array.isArray(d) ? d : [])).catch(() => {})
   }, [])
 
-  const dateObj = brief?.date ? new Date(brief.date + 'T12:00:00') : null
-  const dayName = dateObj?.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
-  const dateFormatted = dateObj?.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
-  const timeFormatted = brief?.generated_at
-    ? new Date(brief.generated_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
-    : null
+  const blocks = brief ? parseContent(brief.content) : []
+  const deals = blocks.filter((b): b is Extract<Block, { type: 'deal' }> => b.type === 'deal')
+  const summaryParas = blocks.filter(b => b.type === 'para').slice(0, 3) as Extract<Block, { type: 'para' }>[]
 
-  const today = new Date()
-  const todayStr = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
+  const topMomentum = underrated[0]?.momentum ?? 1
+  const marketState = topMomentum >= 2 ? 'EARLY SIGNAL' : topSectors[0] && computeAccel(topSectors[0].count_30d, topSectors[0].count_90d) > 15 ? 'CONSENSUS' : 'QUIET'
+  const tempoScore = Math.min(95, Math.round(20 + (topSectors[0]?.count_30d || 0) * 2.5 + (underrated.length * 8)))
+
+  const issueDate = brief?.date ? new Date(brief.date + 'T12:00:00') : new Date()
+  const dayOfYear = Math.floor((issueDate.getTime() - new Date(issueDate.getFullYear(), 0, 0).getTime()) / 86400000)
+  const vol = Math.floor(dayOfYear / 90) + 1
+  const no = (dayOfYear % 90) + 1
+  const dayName = issueDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+  const dateStr = issueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    .toUpperCase().replace(/(\d+)\s+(\w+)\s+(\d+)/, '$1 $2 $3')
+
+  const movers: { sector: string; accel: number }[] = [
+    ...topSectors.slice(0, 3).map(s => ({ sector: s.sector, accel: computeAccel(s.count_30d, s.count_90d) })),
+    ...underrated.filter(u => !topSectors.slice(0, 3).some(s => s.sector === u.sector)).map(u => ({ sector: u.sector, accel: Math.round((u.momentum - 1) * 100) })),
+  ].slice(0, 5)
+
+  const px = isMobile ? '16px' : '36px'
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF8F3' }}>
+      {/* Nav bar */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: `16px ${px} 0` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button onClick={() => router.push('/')} style={{ appearance: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'default', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+            <span className="serif" style={{ fontSize: '1.35rem', color: 'var(--ink)', lineHeight: 1 }}>
+              Premia<span style={{ color: 'var(--terra)', fontSize: '0.6em', verticalAlign: 'super', marginLeft: 1 }}>·</span>
+            </span>
+          </button>
+          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, letterSpacing: '.1em', color: 'var(--ink-mute)' }}>
+            {!isMobile && `Vol. ${vol} / `}No. {String(no).padStart(3, '0')}
+          </span>
+        </div>
+      </div>
 
       {/* Masthead */}
-      <div style={{ borderBottom: '3px solid var(--ink)', padding: '0 0 0' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 24px 0' }}>
-          {/* Top rule */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.2)' }} />
-            <span style={{ fontFamily: `var(--font-mono, monospace)`, fontSize: 9, letterSpacing: '.22em', color: 'var(--ink-mute)' }}>PRIVATE MARKETS INTELLIGENCE</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.2)' }} />
-          </div>
-
-          {/* Wordmark row */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, paddingBottom: 16 }}>
-            <div>
-              <div style={{ fontFamily: `var(--font-serif, serif)`, fontSize: 52, fontWeight: 400, color: 'var(--ink)', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                Premia
-                <span style={{ color: 'var(--terra)', fontSize: '0.5em', verticalAlign: 'super', marginLeft: 2 }}>·</span>
-              </div>
-              <div style={{ fontFamily: `var(--font-mono, monospace)`, fontSize: 11, letterSpacing: '.16em', color: 'var(--ink-mute)', marginTop: 4 }}>INTELLIGENCE BRIEF</div>
-            </div>
-            <div style={{ textAlign: 'right', paddingBottom: 6 }}>
-              <div style={{ fontFamily: `var(--font-mono, monospace)`, fontSize: 11, letterSpacing: '.1em', color: 'var(--ink-mute)' }}>
-                {dayName && <span>{dayName} · </span>}
-                {dateFormatted || todayStr}
-              </div>
-              {timeFormatted && (
-                <div style={{ fontFamily: `var(--font-mono, monospace)`, fontSize: 10, color: 'var(--ink-mute)', marginTop: 3, letterSpacing: '.06em' }}>
-                  Published {timeFormatted}
-                </div>
-              )}
-            </div>
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: `18px ${px}` }}>
+        <div style={{ height: 1, background: 'rgba(43,37,32,.2)', marginBottom: 16 }} />
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.22em', color: 'var(--ink-mute)', marginBottom: 10 }}>THE PREMIA DESK</div>
+          <h1 className="serif" style={{ fontSize: isMobile ? 'clamp(38px, 10vw, 56px)' : 'clamp(56px, 8vw, 96px)', fontWeight: 400, lineHeight: 1, margin: 0, color: 'var(--ink)', letterSpacing: '-0.03em' }}>Intelligence Brief</h1>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: isMobile ? 11 : 12, letterSpacing: '.14em', color: 'var(--ink-mute)', marginTop: 12 }}>
+            {dayName} · {dateStr}
           </div>
         </div>
+        <div style={{ height: 1, background: 'rgba(43,37,32,.2)' }} />
       </div>
 
-      {/* Nav */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '16px 24px 0' }}>
-        <button onClick={() => router.push('/')} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'var(--ink-mute)', font: '500 13px Instrument Sans', cursor: 'default', display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0 }}>
-          ← Back to Premia
-        </button>
-      </div>
+      {/* Main content */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: `0 ${px} 60px` }}>
+        {loading ? (
+          <div style={{ paddingTop: 24 }}><Skeleton /></div>
+        ) : !brief ? (
+          <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+            <div className="serif" style={{ fontSize: '1.6rem', color: 'var(--ink-mute)', marginBottom: 10 }}>No brief today — yet.</div>
+            <p style={{ fontSize: '0.9rem', color: 'var(--ink-mute)' }}>The Intelligence Brief publishes every morning at 9 AM IST.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-      {/* Content */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 24px 60px' }}>
-        <div style={{ background: 'var(--paper)', borderRadius: 14, border: '1px solid rgba(43,37,32,.10)', boxShadow: '0 10px 24px -18px rgba(43,37,32,.25), 0 1px 0 rgba(255,255,255,.6) inset', padding: '32px 36px', position: 'relative' }}>
-          {/* Paper texture */}
-          <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-            backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='g'><feTurbulence baseFrequency='.85' numOctaves='1' seed='2'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.14  0 0 0 0 0.10  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>")`,
-            mixBlendMode: 'multiply', opacity: .5 }} />
+            {/* Signal card + Stats */}
+            <SignalCard state={marketState} tempo={tempoScore} isMobile={isMobile} />
+            <StatsRow
+              dealCount={deals.length}
+              sectorCount={topSectors.length}
+              gainCount={underrated.length}
+              quietCount={Math.max(0, 12 - topSectors.length - underrated.length)}
+              isMobile={isMobile}
+            />
 
-          {loading ? <BriefSkeleton /> : !brief ? (
-            <div style={{ padding: '3rem 0', textAlign: 'center' }}>
-              <div style={{ fontFamily: `var(--font-serif, serif)`, fontSize: '1.5rem', color: 'var(--ink-mute)', marginBottom: 12 }}>No brief today — yet.</div>
-              <p style={{ fontSize: '0.9rem', color: 'var(--ink-mute)', lineHeight: 1.6, maxWidth: 360, margin: '0 auto' }}>
-                The Intelligence Brief publishes every morning at 9 AM IST. Check back shortly.
-              </p>
-            </div>
-          ) : (
-            <div style={{ position: 'relative' }}>
-              {/* Lede rule */}
-              <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px dashed rgba(43,37,32,.18)' }}>
-                <p style={{ fontFamily: `var(--font-serif, serif)`, fontSize: '1.05rem', lineHeight: 1.7, color: 'var(--ink-soft)', margin: 0 }}>
-                  Today&rsquo;s edition covers confirmed transactions, emerging themes, and what the deal flow says about where capital is moving.
-                </p>
+            {/* Body: single column on mobile, two-column on desktop */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap: isMobile ? 24 : 32, alignItems: 'start' }}>
+
+              {/* LEFT: Main content */}
+              <div>
+                {summaryParas.length > 0 && (
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>EXECUTIVE SUMMARY</span>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                    </div>
+                    {summaryParas.map((b, i) => (
+                      <p key={i} style={{
+                        fontFamily: `var(--font-sans, 'Instrument Sans', sans-serif)`,
+                        fontSize: isMobile ? '1rem' : '1.05rem', lineHeight: 1.8, color: 'var(--ink-soft)', margin: '0 0 14px',
+                      }}>
+                        {i === 0 && (
+                          <span className="serif" style={{ float: 'left', fontSize: isMobile ? '3rem' : '3.8rem', lineHeight: .8, marginRight: 8, marginTop: 6, color: '#B83A26', fontWeight: 400 }}>
+                            {b.text[0]}
+                          </span>
+                        )}
+                        {i === 0 ? b.text.slice(1) : renderInline(b.text)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {deals.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>CONFIRMED TRANSACTIONS</span>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                    </div>
+                    {deals.map((d, i) => <DealItem key={i} index={i + 1} headline={d.headline} url={d.url} body={d.body} />)}
+                  </div>
+                )}
               </div>
-              <BriefContent content={brief.content} />
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--ink-mute)', margin: 0, fontFamily: `var(--font-mono, monospace)`, letterSpacing: '.06em' }}>
-            Premia · Deal intelligence for deal professionals
-          </p>
-          <button onClick={() => router.push('/')} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', color: 'var(--ink-soft)', font: '500 12px Instrument Sans', padding: '7px 14px', borderRadius: 999, cursor: 'default' }}>
-            Search a thesis →
-          </button>
-        </div>
+              {/* RIGHT: Sidebar — rendered below on mobile */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {movers.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600, whiteSpace: 'nowrap' }}>TODAY&apos;S MOVERS</span>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                    </div>
+                    {/* On mobile: 2-column grid for movers */}
+                    {isMobile ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {movers.map((m, i) => <TodaysMover key={i} sector={m.sector} accel={m.accel} />)}
+                      </div>
+                    ) : (
+                      movers.map((m, i) => <TodaysMover key={i} sector={m.sector} accel={m.accel} />)
+                    )}
+                  </div>
+                )}
+
+                {(blocks.filter(b => b.type === 'para') as Extract<Block, { type: 'para' }>[]).slice(3).length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                      <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600 }}>WATCHLIST</span>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(43,37,32,.12)' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {(blocks.filter(b => b.type === 'para') as Extract<Block, { type: 'para' }>[]).slice(3, 7).map((b, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(43,37,32,.35)', flexShrink: 0, marginTop: 4, display: 'inline-block' }} />
+                          <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.65, color: 'var(--ink-soft)' }}>{renderInline(b.text)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <SubscribeForm />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

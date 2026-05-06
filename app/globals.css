@@ -32,7 +32,7 @@ body {
   position: relative;
 }
 
-.serif { font-family: var(--font-serif), 'Young Serif', serif; }
+.serif { font-family: var(--font-serif), 'Young Serif', Georgia, serif; }
 .mono  { font-family: var(--font-mono), 'JetBrains Mono', monospace; }
 .num   { font-family: var(--font-serif), 'Young Serif', serif; font-weight: 400; }
 .muted { color: var(--ink-mute); }

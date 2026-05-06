@@ -70,20 +70,20 @@ TIER_2_FEEDS = [
 ]
 
 TIER_3_QUERIES = [
-    "private equity acquisition 2025",
-    "M&A deal India 2025",
-    "strategic acquisition United States 2025",
-    "private equity buyout Europe 2025",
-    "majority stake acquisition 2025",
-    "take private deal 2025",
-    "acquisition Singapore 2025",
-    "private equity Middle East 2025",
-    '"climate infrastructure" OR "energy transition" acquisition 2025',
-    '"fintech" OR "financial technology" acquires OR "takes stake" 2025',
-    '"healthtech" OR "digital health" acquisition OR buyout 2025',
-    '"SaaS" OR "B2B software" private equity buyout 2025',
-    '"logistics" OR "supply chain" acquisition stake 2025',
-    '"sovereign wealth fund" acquisition stake 2025',
+    "private equity acquisition 2026",
+    "M&A deal India 2026",
+    "strategic acquisition United States 2026",
+    "private equity buyout Europe 2026",
+    "majority stake acquisition 2026",
+    "take private deal 2026",
+    "acquisition Singapore 2026",
+    "private equity Middle East 2026",
+    '"climate infrastructure" OR "energy transition" acquisition 2026',
+    '"fintech" OR "financial technology" acquires OR "takes stake" 2026',
+    '"healthtech" OR "digital health" acquisition OR buyout 2026',
+    '"SaaS" OR "B2B software" private equity buyout 2026',
+    '"logistics" OR "supply chain" acquisition stake 2026',
+    '"sovereign wealth fund" acquisition stake 2026',
 ]
 
 DEAL_KEYWORDS = [

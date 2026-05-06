@@ -52,6 +52,17 @@ function computeAccel(count_30d: number, count_90d: number) {
   return Math.round((recent / prior - 1) * 100)
 }
 
+function useIsMobile(breakpoint = 700) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+  return isMobile
+}
+
 // ── SectionDivider ─────────────────────────────────────────────────────────────
 
 function SectionDivider({ label }: { label: string }) {
@@ -102,7 +113,7 @@ function TypeOrDrop({ label, value, onChange, options, color, accent }: {
           <input ref={inputRef} value={text}
             onChange={e => { setText(e.target.value); setOpen(true); setHoverIdx(0); if (!e.target.value) onChange('') }}
             onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} onKeyDown={onKey}
-            placeholder="type or drop…"
+            placeholder="type or pick…"
             style={{ border: 0, outline: 'none', background: 'transparent', font: `400 18px/1.2 var(--font-serif, serif)`, color: 'var(--ink)', width: '100%', padding: '2px 0' }}
           />
         </div>
@@ -125,19 +136,37 @@ function TypeOrDrop({ label, value, onChange, options, color, accent }: {
 // ── ChipRow ────────────────────────────────────────────────────────────────────
 
 function ChipRow({ items, kind, active, onSelect }: { items: Opt[]; kind: 'sector' | 'geo'; active: string; onSelect: (l: string) => void }) {
+  const [lifted, setLifted] = useState<string | null>(null)
+
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      {items.map(item => (
-        <button key={item.id} onClick={() => onSelect(item.label)} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999,
-          border: `1px solid ${active === item.label ? 'rgba(124,181,24,.55)' : 'rgba(43,37,32,.18)'}`,
-          background: active === item.label ? 'rgba(163,230,53,.18)' : 'rgba(255,255,255,.55)',
-          color: 'var(--ink)', font: '500 12px Instrument Sans', cursor: 'default', transition: 'all .15s',
-        }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: kind === 'sector' ? 'var(--terra)' : 'var(--accent-deep)' }} />
-          {item.label}
-        </button>
-      ))}
+      {items.map(item => {
+        const isLifted = lifted === item.id
+        const isActive = active === item.label
+        return (
+          <button key={item.id}
+            onClick={() => onSelect(item.label)}
+            onPointerDown={() => setLifted(item.id)}
+            onPointerUp={() => { setLifted(null); onSelect(item.label) }}
+            onPointerLeave={() => setLifted(null)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999,
+              border: `1px solid ${isActive ? 'rgba(124,181,24,.55)' : isLifted ? 'rgba(43,37,32,.35)' : 'rgba(43,37,32,.18)'}`,
+              background: isActive ? 'rgba(163,230,53,.18)' : isLifted ? '#FAF8F3' : 'rgba(255,255,255,.55)',
+              color: 'var(--ink)', font: '500 12px Instrument Sans', cursor: 'grab',
+              transform: isLifted ? 'scale(1.1) translateY(-4px) rotate(-1deg)' : 'scale(1) translateY(0)',
+              boxShadow: isLifted ? '0 12px 28px -8px rgba(43,37,32,.3), 0 2px 0 rgba(255,255,255,.7) inset' : 'none',
+              transition: isLifted ? 'transform .08s ease-out, box-shadow .08s ease-out' : 'all .18s ease',
+              zIndex: isLifted ? 20 : 1,
+              position: 'relative',
+              userSelect: 'none',
+              touchAction: 'none',
+            }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: kind === 'sector' ? 'var(--terra)' : 'var(--accent-deep)', flexShrink: 0 }} />
+            {item.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -165,7 +194,7 @@ function StrengthDial({ value = 8, max = 50, accent = '#8C7E6F' }: { value?: num
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
   })
 
-  const W = 280, H = 68
+  const W = 240, H = 58
   const pct = Math.max(0, Math.min(1, val / max))
   const cx = W / 2, cy = H + 10, r = W / 2 - 6
   const aN = Math.PI + (0 - Math.PI) * pct
@@ -198,7 +227,7 @@ function StrengthDial({ value = 8, max = 50, accent = '#8C7E6F' }: { value?: num
 
 // ── SignalBoard ────────────────────────────────────────────────────────────────
 
-function SignalBoard({ onAnalyse, onPin }: { onAnalyse: (t: string) => void; onPin: (s: string, g: string) => void }) {
+function SignalBoard({ onAnalyse, onPin, isMobile }: { onAnalyse: (t: string) => void; onPin: (s: string, g: string) => void; isMobile: boolean }) {
   const [sector, setSector] = useState('')
   const [geo, setGeo] = useState('')
   const [shuffle, setShuffle] = useState(0)
@@ -207,8 +236,8 @@ function SignalBoard({ onAnalyse, onPin }: { onAnalyse: (t: string) => void; onP
   const sectorPool = useMemo(() => {
     const pool = SECTORS_LIST.filter(s => s.label !== sector)
     const start = (shuffle * 4) % pool.length
-    return [...pool.slice(start), ...pool.slice(0, start)].slice(0, 7)
-  }, [sector, shuffle])
+    return [...pool.slice(start), ...pool.slice(0, start)].slice(0, isMobile ? 5 : 7)
+  }, [sector, shuffle, isMobile])
 
   const geoPool = useMemo(() => {
     const pool = GEOS_LIST.filter(g => g.label !== geo)
@@ -217,62 +246,81 @@ function SignalBoard({ onAnalyse, onPin }: { onAnalyse: (t: string) => void; onP
   }, [geo, shuffle])
 
   return (
-    <section className="paper" style={{ padding: '28px 30px 32px', overflow: 'visible' }}>
+    <section className="paper" style={{ padding: isMobile ? '20px 18px 24px' : '28px 30px 32px', overflow: 'visible' }}>
       <div className="pin" style={{ top: 10, left: 14 }} />
       <div className="pin brass" style={{ top: 10, right: 14 }} />
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
         <div>
-          <h1 className="serif" style={{ fontSize: 42, lineHeight: 1.05, margin: 0 }}>
+          <h1 className="serif" style={{ fontSize: isMobile ? 30 : 42, lineHeight: 1.05, margin: 0 }}>
             What&rsquo;s your <span className="underline-wave">thesis</span>?
           </h1>
-          <p style={{ margin: '8px 0 0', fontSize: 15, color: 'var(--ink-soft)', maxWidth: 560 }}>
-            Type a sector and geography — or drag chips onto the board. Premia tells you if you&rsquo;re early, on time, or late, and how loudly.
-          </p>
+          {!isMobile && (
+            <p style={{ margin: '8px 0 0', fontSize: 15, color: 'var(--ink-soft)', maxWidth: 560 }}>
+              Type a sector and geography — or tap chips below. Premia tells you if you&rsquo;re early, on time, or late.
+            </p>
+          )}
         </div>
-        <button onClick={() => setShuffle(s => s + 1)} style={{
-          flexShrink: 0, appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.4)',
-          padding: '8px 14px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginTop: 4,
-        }}>↻ reshuffle</button>
+        {!isMobile && (
+          <button onClick={() => setShuffle(s => s + 1)} style={{
+            flexShrink: 0, appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.4)',
+            padding: '8px 14px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginTop: 4,
+          }}>↻ reshuffle</button>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', margin: '22px 0 18px' }}>
+      {/* Input row — stacks on mobile */}
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 12, alignItems: 'stretch', margin: '18px 0 16px' }}>
         <TypeOrDrop label="Sector" value={sector} onChange={setSector} options={SECTORS_LIST} color="rgba(184,58,38,.10)" accent="rgba(184,58,38,.5)" />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, color: 'var(--ink-mute)', font: `400 16px var(--font-serif, serif)` }}>in</div>
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, color: 'var(--ink-mute)', font: `400 16px var(--font-serif, serif)` }}>in</div>
+        )}
         <TypeOrDrop label="Geography" value={geo} onChange={setGeo} options={GEOS_LIST} color="rgba(163,230,53,.16)" accent="rgba(124,181,24,.55)" />
         <button disabled={!ready} onClick={() => ready && onAnalyse(`${sector} in ${geo}`)} style={{
           appearance: 'none', border: 0,
           background: ready ? 'var(--accent)' : 'rgba(43,37,32,.10)',
           color: ready ? '#1a1a1a' : 'var(--ink-mute)',
           font: '600 14px Instrument Sans',
-          padding: '0 22px', borderRadius: 12, minWidth: 120,
+          padding: isMobile ? '14px 22px' : '0 22px',
+          borderRadius: 12,
+          minWidth: isMobile ? 'unset' : 120,
+          width: isMobile ? '100%' : 'auto',
           cursor: ready ? 'default' : 'not-allowed',
           boxShadow: ready ? '0 6px 14px -8px rgba(124,181,24,.7), 0 1px 0 rgba(255,255,255,.5) inset' : 'none',
           transition: 'all .15s',
         }}>Analyse →</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 22 }}>
+      {/* Chips — single column on mobile, two columns on desktop */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 20, marginBottom: 20 }}>
         <div>
-          <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 8 }}>← SECTORS · drag one</div>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 8 }}>SECTORS</div>
           <ChipRow items={sectorPool} kind="sector" active={sector} onSelect={setSector} />
         </div>
         <div>
-          <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 8 }}>← GEOGRAPHIES · drag one</div>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 8 }}>GEOGRAPHIES</div>
           <ChipRow items={geoPool} kind="geo" active={geo} onSelect={setGeo} />
         </div>
       </div>
 
+      {/* Reshuffle — mobile only, below chips */}
+      {isMobile && (
+        <button onClick={() => setShuffle(s => s + 1)} style={{
+          width: '100%', appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.4)',
+          padding: '8px 14px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginBottom: 16,
+        }}>↻ reshuffle chips</button>
+      )}
+
       {/* Verdict strip */}
-      <div style={{ padding: '18px 22px', borderRadius: 12, background: '#FAF8F3', border: '1px solid rgba(43,37,32,.10)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ padding: isMobile ? '14px 16px' : '18px 22px', borderRadius: 12, background: '#FAF8F3', border: '1px solid rgba(43,37,32,.10)', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: isMobile ? 12 : 24, alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 1px), rgba(43,37,32,.06) 100%)', backgroundSize: '100% 22px', position: 'absolute', inset: 0, pointerEvents: 'none' }} />
         <div style={{ position: 'relative' }}>
           {ready ? (
             <div>
-              <div className="serif" style={{ fontSize: 20, color: 'var(--ink)', marginBottom: 8 }}>
+              <div className="serif" style={{ fontSize: isMobile ? 17 : 20, color: 'var(--ink)', marginBottom: 8 }}>
                 &ldquo;{sector} in {geo}&rdquo; — ready to analyse.
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => onPin(sector, geo)} style={{ appearance: 'none', border: '1px solid rgba(124,181,24,.55)', background: 'rgba(163,230,53,.18)', color: 'var(--ink)', font: '600 12px Instrument Sans', padding: '7px 14px', borderRadius: 999, cursor: 'default' }}>Pin to Pad</button>
                 <button onClick={() => onAnalyse(`${sector} in ${geo}`)} style={{ appearance: 'none', border: 0, background: 'var(--accent)', color: '#1a1a1a', font: '600 13px Instrument Sans', padding: '7px 18px', borderRadius: 999, cursor: 'default', boxShadow: '0 4px 10px -6px rgba(124,181,24,.7)' }}>Full analysis →</button>
               </div>
@@ -285,16 +333,18 @@ function SignalBoard({ onAnalyse, onPin }: { onAnalyse: (t: string) => void; onP
                   — PICK ONE OF EACH —
                 </span>
               </div>
-              <div className="serif" style={{ fontSize: 19, lineHeight: 1.3, color: 'var(--ink-mute)', maxWidth: 480 }}>
-                Your verdict appears here. The strip becomes a printable ticket once both chips are pinned.
+              <div className="serif" style={{ fontSize: isMobile ? 16 : 19, lineHeight: 1.3, color: 'var(--ink-mute)', maxWidth: 480 }}>
+                Your verdict appears here once both are selected.
               </div>
             </div>
           )}
         </div>
-        <div style={{ position: 'relative' }}>
-          <div className="mono" style={{ fontSize: 9, letterSpacing: '.14em', color: 'var(--ink-mute)', marginBottom: 6, textAlign: 'center' }}>SIGNAL STRENGTH · drag to test</div>
-          <StrengthDial value={ready ? 12 : 8} accent={ready ? '#A88B4C' : '#8C7E6F'} />
-        </div>
+        {!isMobile && (
+          <div style={{ position: 'relative' }}>
+            <div className="mono" style={{ fontSize: 9, letterSpacing: '.14em', color: 'var(--ink-mute)', marginBottom: 6, textAlign: 'center' }}>SIGNAL STRENGTH · drag to test</div>
+            <StrengthDial value={ready ? 12 : 8} accent={ready ? '#A88B4C' : '#8C7E6F'} />
+          </div>
+        )}
       </div>
     </section>
   )
@@ -334,28 +384,29 @@ function PadNote({ note, onMove, onRemove }: { note: PadNote; onMove: (id: strin
 
   return (
     <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
-      style={{ position: 'absolute', left: note.x + local.x, top: note.y + local.y, width: 190, minHeight: 120, background: colors.bg, padding: '14px 14px 12px', borderRadius: 2,
+      style={{ position: 'absolute', left: note.x + local.x, top: note.y + local.y, width: 175, minHeight: 110, background: colors.bg, padding: '14px 14px 12px', borderRadius: 2,
         boxShadow: dragging ? '0 24px 40px -16px rgba(43,37,32,.4)' : '0 8px 18px -10px rgba(43,37,32,.3), 0 1px 0 rgba(255,255,255,.5) inset',
         transform: `rotate(${note.tilt}deg) ${dragging ? 'scale(1.02)' : ''}`,
         transition: dragging ? 'none' : 'transform .25s, box-shadow .25s', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none', zIndex: dragging ? 30 : 1 }}>
       <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%) rotate(-2deg)', width: 70, height: 18, background: colors.tape, boxShadow: '0 2px 4px rgba(0,0,0,.08)' }} />
       <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', color: 'rgba(43,37,32,.55)' }}>{note.state}</div>
-      <div className="serif" style={{ fontSize: 16, lineHeight: 1.25, marginTop: 6, color: 'var(--ink)' }}>{note.text}</div>
+      <div className="serif" style={{ fontSize: 15, lineHeight: 1.25, marginTop: 6, color: 'var(--ink)' }}>{note.text}</div>
       <div className="mono" style={{ marginTop: 10, fontSize: 10, color: 'rgba(43,37,32,.55)', letterSpacing: '.06em' }}>{note.deals30}d/30 · {note.deals90}d/90 · {note.media}m</div>
       <button onClick={() => onRemove(note.id)} style={{ position: 'absolute', top: 6, right: 6, appearance: 'none', border: 0, background: 'transparent', color: 'rgba(43,37,32,.4)', fontSize: 14, cursor: 'default', padding: 4 }}>×</button>
     </div>
   )
 }
 
-function ThesisPad({ notes, setNotes }: { notes: PadNote[]; setNotes: React.Dispatch<React.SetStateAction<PadNote[]>> }) {
+function ThesisPad({ notes, setNotes, isMobile }: { notes: PadNote[]; setNotes: React.Dispatch<React.SetStateAction<PadNote[]>>; isMobile: boolean }) {
   const onMove = (id: string, p: { x: number; y: number }) => setNotes(prev => prev.map(n => n.id === id ? { ...n, ...p } : n))
   const onRemove = (id: string) => setNotes(prev => prev.filter(n => n.id !== id))
+  const boardH = isMobile ? 220 : 320
 
   return (
     <div>
       <SectionDivider label="YOUR THESIS PAD" />
       <div style={{ marginTop: 14 }}>
-        <div style={{ position: 'relative', height: 320, borderRadius: 14, background: '#3A2A1E',
+        <div style={{ position: 'relative', height: boardH, borderRadius: 14, background: '#3A2A1E',
           backgroundImage: `repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 2px, transparent 2px 6px), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='c'><feTurbulence baseFrequency='1.4' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.22  0 0 0 0 0.13  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>")`,
           boxShadow: '0 14px 30px -20px rgba(43,37,32,.5), 0 0 0 7px #5A3D24, 0 0 0 8px #2B1B0F', overflow: 'hidden' }}>
           <div className="pin brass" style={{ top: 14, left: 14 }} />
@@ -375,7 +426,7 @@ function ThesisPad({ notes, setNotes }: { notes: PadNote[]; setNotes: React.Disp
           )}
         </div>
         <p style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-mute)' }}>
-          Pinned theses live here. Drag them around, group them, or pluck them off. Each note carries the deal/media counts at the moment it was pinned.
+          Pinned theses live here. Drag them around, group them, or pluck them off.
         </p>
       </div>
     </div>
@@ -420,7 +471,7 @@ function SectorCard({ rank, sector, count_30d, count_90d, onClick }: { rank: num
       <div className="pin" style={{ top: 8, left: '50%', transform: 'translateX(-50%)' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
         <span className="mono" style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: 'rgba(43,37,32,.08)', color: 'var(--ink-soft)', letterSpacing: '.12em' }}>#{rank}</span>
-        <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 999, background: accelBg, color: accelColor, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.04em' }}>{accel >= 0 ? '+' : ''}{accel}% vs prior 60d</span>
+        <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 999, background: accelBg, color: accelColor, fontFamily: 'var(--font-mono, monospace)', letterSpacing: '.04em' }}>{accel >= 0 ? '+' : ''}{accel}%</span>
       </div>
       <h3 className="serif" style={{ margin: '12px 0 4px', fontSize: 20, lineHeight: 1.1, color: 'var(--ink)' }}>{sector}</h3>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
@@ -435,7 +486,7 @@ function SectorCard({ rank, sector, count_30d, count_90d, onClick }: { rank: num
   )
 }
 
-function SectorBoard({ data, loading, onSelect }: { data: SectorData[]; loading: boolean; onSelect: (s: string) => void }) {
+function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]; loading: boolean; onSelect: (s: string) => void; isMobile: boolean }) {
   const [visible, setVisible] = useState(3)
   const showing = data.slice(visible - 3, visible)
 
@@ -444,19 +495,20 @@ function SectorBoard({ data, loading, onSelect }: { data: SectorData[]; loading:
       <SectionDivider label="WHAT'S MOVING RIGHT NOW" />
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '14px 0 14px' }}>
         <div>
-          <h2 className="serif" style={{ margin: 0, fontSize: 26 }}>What&rsquo;s moving right now</h2>
-          <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--ink-mute)' }}>Drag a card sideways to re-rank it. Drop the last one to swap a different sector in.</p>
+          <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 22 : 26 }}>What&rsquo;s moving right now</h2>
+          {!isMobile && <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--ink-mute)' }}>Live deal flow across tracked sectors.</p>}
         </div>
         {data.length > 3 && (
           <button onClick={() => setVisible(v => v >= data.length ? 3 : Math.min(v + 1, data.length))}
             style={{ flexShrink: 0, appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', padding: '7px 12px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default' }}>
-            swap in next →
+            next →
           </button>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 16 }}>
+      {/* On mobile: vertical stack. On desktop: horizontal flex */}
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 14 }}>
         {loading
-          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: '1 1 0', height: 220, borderRadius: 14, background: 'var(--paper)' }} />)
+          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: '1 1 0', height: isMobile ? 100 : 220, borderRadius: 14, background: 'var(--paper)' }} />)
           : showing.map((s, i) => <SectorCard key={s.sector} rank={i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />)
         }
       </div>
@@ -512,29 +564,31 @@ function Knob({ angle, setAngle, size = 100 }: { angle: number; setAngle: (a: nu
 
 interface UnderratedData { sector: string; count_30d: number; momentum: number }
 
-function MomentumPanel({ data, loading, onSelect }: { data: UnderratedData[]; loading: boolean; onSelect: (s: string) => void }) {
+function MomentumPanel({ data, loading, onSelect, isMobile }: { data: UnderratedData[]; loading: boolean; onSelect: (s: string) => void; isMobile: boolean }) {
   const [angle, setAngle] = useState(-45)
   const winLabel = angle < -90 ? '7D' : angle < 0 ? '30D' : angle < 90 ? '60D' : '90D'
   const sorted = [...data].sort((a, b) => b.momentum - a.momentum)
   const max = Math.max(...sorted.map(s => s.momentum), 1.5)
+  const knobSize = isMobile ? 72 : 100
 
   return (
     <div>
       <SectionDivider label="GAINING MOMENTUM" />
-      <section className="paper" style={{ padding: '24px 26px', marginTop: 14 }}>
+      <section className="paper" style={{ padding: isMobile ? '20px 18px' : '24px 26px', marginTop: 14 }}>
         <div className="pin brass" style={{ top: 10, left: '50%', transform: 'translateX(-50%)' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr', gap: 28, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <Knob angle={angle} setAngle={setAngle} />
-            <div style={{ textAlign: 'center' }}>
-              <div className="serif" style={{ fontSize: 28, lineHeight: 1 }}>{winLabel}</div>
+        {/* Stack vertically on mobile */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 20 : 28, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', alignItems: 'center', gap: isMobile ? 16 : 12, justifyContent: isMobile ? 'flex-start' : 'center' }}>
+            <Knob angle={angle} setAngle={setAngle} size={knobSize} />
+            <div style={{ textAlign: isMobile ? 'left' : 'center' }}>
+              <div className="serif" style={{ fontSize: isMobile ? 24 : 28, lineHeight: 1 }}>{winLabel}</div>
               <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>turn the dial</div>
             </div>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 className="serif" style={{ margin: 0, fontSize: 22 }}>Gaining momentum</h2>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>vs. prior period</span>
+              <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 20 : 22 }}>Gaining momentum</h2>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>vs. prior</span>
             </div>
             {loading ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 24, borderRadius: 8, background: 'rgba(43,37,32,.06)', marginBottom: 8 }} />) : sorted.length === 0 ? (
               <p style={{ color: 'var(--ink-mute)', fontSize: 13 }}>Momentum data updates every 4 hours.</p>
@@ -543,7 +597,7 @@ function MomentumPanel({ data, loading, onSelect }: { data: UnderratedData[]; lo
               const w = Math.min(100, (s.momentum / max) * 100)
               const color = pct >= 50 ? '#7CB518' : pct >= 20 ? '#A88B4C' : '#B83A26'
               return (
-                <button key={s.sector} onClick={() => onSelect(s.sector)} style={{ appearance: 'none', border: 'none', background: 'transparent', display: 'grid', gridTemplateColumns: '160px 1fr 56px', alignItems: 'center', gap: 12, cursor: 'default', padding: '4px 0', textAlign: 'left', width: '100%' }}>
+                <button key={s.sector} onClick={() => onSelect(s.sector)} style={{ appearance: 'none', border: 'none', background: 'transparent', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 48px' : '160px 1fr 56px', alignItems: 'center', gap: isMobile ? 8 : 12, cursor: 'default', padding: '4px 0', textAlign: 'left', width: '100%' }}>
                   <span style={{ font: '500 13px Instrument Sans', color: 'var(--ink)' }}>{s.sector}</span>
                   <div style={{ position: 'relative', height: 14, background: 'rgba(43,37,32,.06)', borderRadius: 7, overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${w}%`, background: `linear-gradient(90deg, ${color}55, ${color}cc)`, borderRadius: 7, transition: 'width .4s cubic-bezier(.2,.9,.2,1.1)' }} />
@@ -569,6 +623,7 @@ export default function HomePage() {
   const [underratedLoading, setUnderratedLoading] = useState(true)
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
   const [{ dateStr, open: mktOpen }] = useState(() => getMarketStatus())
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     fetch('/api/top-sectors').then(r => r.json()).then(d => { setTopSectors(Array.isArray(d) ? d : []); setSectorsLoading(false) }).catch(() => setSectorsLoading(false))
@@ -585,38 +640,40 @@ export default function HomePage() {
   const handlePin = (sector: string, geo: string) => {
     setPadNotes(prev => [...prev, {
       id: Date.now().toString(), text: `${sector} in ${geo}`, state: 'QUIET',
-      x: 20 + (prev.length % 4) * 210, y: 30 + Math.floor(prev.length / 4) * 140,
+      x: 20 + (prev.length % 4) * 195, y: 30 + Math.floor(prev.length / 4) * 130,
       tilt: (Math.random() - 0.5) * 6, deals30: 0, deals90: 0, media: 0,
     }])
   }
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF8F3' }}>
-      <header style={{ padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span className="serif" style={{ fontSize: '1.5rem', color: 'var(--ink)' }}>
+      <header style={{ padding: isMobile ? '12px 16px' : '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span className="serif" style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', color: 'var(--ink)', flexShrink: 0 }}>
           Premia<span style={{ color: 'var(--terra)', fontSize: '0.65em', verticalAlign: 'super', marginLeft: 1 }}>·</span>
         </span>
-        <div className="mono" style={{ fontSize: 11, letterSpacing: '.12em', color: 'var(--ink-mute)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>{dateStr}</span>
-          <span>·</span>
-          <span style={{ color: mktOpen ? '#7CB518' : 'var(--ink-mute)' }}>MARKETS {mktOpen ? 'OPEN' : 'CLOSED'}</span>
-        </div>
+        {!isMobile && (
+          <div className="mono" style={{ fontSize: 11, letterSpacing: '.12em', color: 'var(--ink-mute)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{dateStr}</span>
+            <span>·</span>
+            <span style={{ color: mktOpen ? '#7CB518' : 'var(--ink-mute)' }}>MARKETS {mktOpen ? 'OPEN' : 'CLOSED'}</span>
+          </div>
+        )}
         <button onClick={() => router.push('/brief')} className="btn-glow"
-          style={{ fontSize: '0.85rem', fontWeight: 600, padding: '6px 16px', borderRadius: 999, color: '#3B2F2F', backgroundColor: '#A3E635', border: 'none', cursor: 'default', display: 'flex', alignItems: 'center', gap: 6 }}>
-          Intelligence Brief of the day <span>→</span>
+          style={{ fontSize: isMobile ? '0.75rem' : '0.85rem', fontWeight: 600, padding: isMobile ? '5px 12px' : '6px 16px', borderRadius: 999, color: '#3B2F2F', backgroundColor: '#A3E635', border: 'none', cursor: 'default', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {isMobile ? 'Brief →' : 'Intelligence Brief →'}
         </button>
       </header>
 
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '8px 24px 60px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} />
-          <ThesisPad notes={padNotes} setNotes={setPadNotes} />
-          <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} />
-          <MomentumPanel data={underrated} loading={underratedLoading} onSelect={handleAnalyse} />
+      <main style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '4px 14px 48px' : '8px 32px 60px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 24 }}>
+          <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} />
+          <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} />
+          <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />
+          <MomentumPanel data={underrated} loading={underratedLoading} onSelect={handleAnalyse} isMobile={isMobile} />
         </div>
       </main>
 
-      <footer style={{ padding: '16px 32px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-mute)' }}>
+      <footer style={{ padding: isMobile ? '12px 16px' : '16px 32px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-mute)' }}>
         Premia · Deal intelligence for deal professionals
         <span style={{ margin: '0 8px' }}>·</span>
         <a href="mailto:manishapoojari48@gmail.com" style={{ color: 'var(--ink-soft)', fontWeight: 600, textDecoration: 'none' }}>Contact</a>

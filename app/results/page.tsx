@@ -168,19 +168,26 @@ function ResultsContent() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF8F3' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px 60px' }}>
-
-        {/* Nav */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
-          <button onClick={() => router.push('/')} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'var(--ink-soft)', font: '500 13px Instrument Sans', cursor: 'default', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            ← New search
+      {/* Top nav */}
+      <header style={{ padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(43,37,32,.08)' }}>
+        <button onClick={() => router.push('/')} style={{ appearance: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'default', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+          <span className="serif" style={{ fontSize: '1.4rem', color: 'var(--ink)', lineHeight: 1 }}>
+            Premia<span style={{ color: 'var(--terra)', fontSize: '0.6em', verticalAlign: 'super', marginLeft: 1 }}>·</span>
+          </span>
+        </button>
+        {data && (
+          <button onClick={handlePin} style={{ appearance: 'none', border: '1px solid rgba(124,181,24,.55)', background: 'rgba(163,230,53,.18)', color: 'var(--ink)', font: '600 12px Instrument Sans', padding: '7px 14px', borderRadius: 999, cursor: 'default' }}>
+            Pin to Pad
           </button>
-          {data && (
-            <button onClick={handlePin} style={{ appearance: 'none', border: '1px solid rgba(124,181,24,.55)', background: 'rgba(163,230,53,.18)', color: 'var(--ink)', font: '600 12px Instrument Sans', padding: '8px 14px', borderRadius: 999, cursor: 'default' }}>
-              Pin to Pad
-            </button>
-          )}
-        </div>
+        )}
+      </header>
+
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '28px 24px 60px' }}>
+
+        {/* Back crumb */}
+        <button onClick={() => router.push('/')} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'var(--ink-mute)', font: '500 12px Instrument Sans', cursor: 'default', display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 18, padding: 0 }}>
+          ← Back to search
+        </button>
 
         <h1 className="serif" style={{ fontSize: 34, lineHeight: 1.05, margin: '0 0 4px', letterSpacing: '-.005em' }}>
           &ldquo;{thesis}&rdquo;

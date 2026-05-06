@@ -6,7 +6,7 @@ const youngSerif = Young_Serif({
   weight: '400',
   subsets: ['latin'],
   variable: '--font-serif',
-  display: 'swap',
+  display: 'block',
 })
 
 const instrumentSans = Instrument_Sans({
