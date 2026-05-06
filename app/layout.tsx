@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Young_Serif, Instrument_Sans } from 'next/font/google'
+import { Young_Serif, Instrument_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
 const youngSerif = Young_Serif({
@@ -16,6 +16,13 @@ const instrumentSans = Instrument_Sans({
   display: 'swap',
 })
 
+const jetbrainsMono = JetBrains_Mono({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'Premia — Deal intelligence for deal professionals',
   description: "Type a sector and geography. Premia tells you if you're early, on time, or late.",
@@ -23,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${youngSerif.variable} ${instrumentSans.variable}`}>
+    <html lang="en" className={`${youngSerif.variable} ${instrumentSans.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   )
