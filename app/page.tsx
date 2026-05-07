@@ -251,6 +251,7 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
   const [sector, setSector] = useState('')
   const [geo, setGeo] = useState('')
   const [shuffle, setShuffle] = useState(0)
+  const [btnPressed, setBtnPressed] = useState(false)
   const ready = !!(sector && geo)
 
   useEffect(() => {
@@ -300,19 +301,30 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, color: 'var(--ink-mute)', font: `400 16px var(--font-serif, serif)` }}>in</div>
         )}
         <TypeOrDrop label="Geography" value={geo} onChange={setGeo} options={GEOS_LIST} color="rgba(163,230,53,.16)" accent="rgba(124,181,24,.55)" />
-        <button disabled={!ready} onClick={() => ready && onAnalyse(`${sector} in ${geo}`)} style={{
-          appearance: 'none', border: 0,
-          background: ready ? 'var(--accent)' : 'rgba(43,37,32,.10)',
-          color: ready ? '#1a1a1a' : 'var(--ink-mute)',
-          font: '600 14px Instrument Sans',
-          padding: isMobile ? '14px 22px' : '0 22px',
-          borderRadius: 12,
-          minWidth: isMobile ? 'unset' : 120,
-          width: isMobile ? '100%' : 'auto',
-          cursor: ready ? 'default' : 'not-allowed',
-          boxShadow: ready ? '0 6px 14px -8px rgba(124,181,24,.7), 0 1px 0 rgba(255,255,255,.5) inset' : 'none',
-          transition: 'all .15s',
-        }}>Analyse →</button>
+        <button
+          disabled={!ready}
+          onClick={() => ready && onAnalyse(`${sector} in ${geo}`)}
+          onPointerDown={() => ready && setBtnPressed(true)}
+          onPointerUp={() => setBtnPressed(false)}
+          onPointerLeave={() => setBtnPressed(false)}
+          style={{
+            appearance: 'none', border: 0,
+            background: ready ? 'var(--accent)' : 'rgba(43,37,32,.10)',
+            color: ready ? '#1a1a1a' : 'var(--ink-mute)',
+            font: '600 14px Instrument Sans',
+            padding: isMobile ? '14px 22px' : '0 22px',
+            borderRadius: 12,
+            minWidth: isMobile ? 'unset' : 120,
+            width: isMobile ? '100%' : 'auto',
+            cursor: ready ? 'default' : 'not-allowed',
+            boxShadow: ready
+              ? btnPressed
+                ? '0 1px 3px -2px rgba(124,181,24,.4)'
+                : '0 6px 14px -8px rgba(124,181,24,.7), 0 1px 0 rgba(255,255,255,.5) inset'
+              : 'none',
+            transform: btnPressed ? 'scale(0.96) translateY(1px)' : 'scale(1) translateY(0)',
+            transition: btnPressed ? 'transform .06s ease-out, box-shadow .06s ease-out' : 'all .15s ease',
+          }}>Analyse →</button>
       </div>
 
       {/* Chips — single column on mobile, two columns on desktop */}
@@ -346,7 +358,16 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => onPin(sector, geo)} style={{ appearance: 'none', border: '1px solid rgba(124,181,24,.55)', background: 'rgba(163,230,53,.18)', color: 'var(--ink)', font: '600 12px Instrument Sans', padding: '7px 14px', borderRadius: 999, cursor: 'default' }}>Pin to Pad</button>
-                <button onClick={() => onAnalyse(`${sector} in ${geo}`)} style={{ appearance: 'none', border: 0, background: 'var(--accent)', color: '#1a1a1a', font: '600 13px Instrument Sans', padding: '7px 18px', borderRadius: 999, cursor: 'default', boxShadow: '0 4px 10px -6px rgba(124,181,24,.7)' }}>Full analysis →</button>
+                <button
+                  onClick={() => onAnalyse(`${sector} in ${geo}`)}
+                  onPointerDown={() => setBtnPressed(true)}
+                  onPointerUp={() => setBtnPressed(false)}
+                  onPointerLeave={() => setBtnPressed(false)}
+                  style={{ appearance: 'none', border: 0, background: 'var(--accent)', color: '#1a1a1a', font: '600 13px Instrument Sans', padding: '7px 18px', borderRadius: 999, cursor: 'default',
+                    boxShadow: btnPressed ? '0 1px 2px -1px rgba(124,181,24,.4)' : '0 4px 10px -6px rgba(124,181,24,.7)',
+                    transform: btnPressed ? 'scale(0.96) translateY(1px)' : 'scale(1)',
+                    transition: btnPressed ? 'transform .06s ease-out, box-shadow .06s ease-out' : 'all .15s ease',
+                  }}>Full analysis →</button>
               </div>
             </div>
           ) : (
