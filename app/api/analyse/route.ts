@@ -437,7 +437,16 @@ async function generateThesis(params: {
 
 Write a three-paragraph analytical thesis based on the following data. Your tone is FT Lex: sharp, opinionated, evidence-anchored. Never hedge excessively. Make a call.
 
-Never use phrases like "it is worth noting", "it is important to consider", "overall", "confluence of factors", "nascent but accelerating", "underscores", "highlights", "juxtaposed".
+WRITING RULES — follow these exactly:
+- No pointing back. Never write "this underscores," "this highlights," "this signals," "this reflects," or any sentence whose only job is to comment on the previous one. Say the thing directly.
+- No present participle padding. Do not end a sentence with "...highlighting the trend," "...reflecting broader caution," "...contributing to the dynamic." Each observation is its own sentence or it is cut.
+- Use "is" and "are." Do not write "serves as," "stands as," "marks," or "represents" where a simple copula works. "Deal volume is low" not "Deal volume stands as a reflection of."
+- No rule of three. Do not force ideas into groups of three. Write what is true.
+- No vague attribution. Do not write "experts argue," "observers note," or "analysts suggest." Name who, or drop the attribution.
+- No negative parallelism. Do not write "it is not just X; it is Y." Write Y.
+- Vary sentence length. Short sentences hit harder. Longer ones earn their length with specifics. Never write three sentences of identical structure in a row.
+- Banned words: "robust," "nuanced," "landscape," "ecosystem," "trajectory," "increasingly," "potentially," "differentiated," "actionable," "value creation," "capital deployment," "it remains to be seen," "pivotal," "crucial," "showcase," "foster," "testament," "vibrant," "groundbreaking," "transformative," "unlock," "tapestry," "interplay."
+- No excessive hedging. "Could potentially possibly" means nothing. If you are uncertain, say the thing and note the specific condition that would change your view.
 
 Data:
 - Thesis being evaluated: ${params.userInput}
@@ -453,7 +462,7 @@ Paragraph 1 (3-4 sentences): Open with one plain sentence on how mature or new t
 
 Paragraph 2 (3-4 sentences): What is driving this pattern? Draw on likely buyer types, macro tailwinds, sector dynamics, or geographic factors that explain the deal clustering.
 
-Paragraph 3 (2-3 sentences): What should a deal professional do with this information? Be direct and actionable. Do not be vague.
+Paragraph 3 (2-3 sentences): What should a deal professional do with this information? Be direct. Do not be vague.
 
 Return only the three paragraphs. No headers, no bullet points, no preamble.`
 

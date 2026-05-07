@@ -171,11 +171,15 @@ The brief must have exactly these sections in this order:
 4 to 6 sentences answering: what stood out today, where activity is forming rather than closing, what feels structurally important, and what this implies about risk appetite or capital dynamics. Lead with the sharpest observation.
 
 **Confirmed Transactions**
-Only announced or clearly progressing deals. For each deal:
-- A 2 to 3 sentence deal snapshot covering the asset, parties, structure, size and sector.
-- 2 to 3 sentences on why it matters — say something not obvious from the headline.
-- A "So what" paragraph of 2 to 3 sentences drawing out what the deal reveals about the sector, capital environment, or ownership dynamic. Goal is to illuminate the implication, not prescribe action.
-Include the deal URL on its own line immediately after the deal snapshot, unmodified.
+Only announced or clearly progressing deals. For each deal, write three distinct blocks in this order:
+
+Deal narrative — 4 to 6 sentences. Name both parties. Describe what the target company actually does: its product, customers, revenue model, and market position. State the deal structure (acquisition, minority stake, merger, carve-out, etc.), the size if disclosed, and any notable terms such as earnouts, regulatory conditions, or financing arrangements. Include sector context only if it explains why this asset was attractive to this buyer at this moment. This is the primary account of what happened — do not compress it into a headline restatement.
+
+Why it matters — 2 to 3 sentences. Say something not obvious from the headline. Explain the strategic logic from the buyer's perspective, what the seller achieved, or what the deal reveals about competitive dynamics in this sector. Do not restate the deal narrative.
+
+So what — 2 to 3 sentences. Draw out what this deal reveals about the broader capital environment, sector ownership patterns, or buyer appetite. Illuminate an implication the reader might not have drawn themselves. Do not prescribe action.
+
+Include the deal URL on its own line immediately after the deal narrative block, unmodified.
 
 **Situations to Watch**
 Signals, not certainty. Strategic reviews, companies exploring options, activist pressure, balance sheet stress, refinancing risk, regulatory overhangs. For each: why this could evolve into a transaction or control shift, and what specific developments would confirm or weaken the thesis.
@@ -195,8 +199,14 @@ WRITING RULES:
 - Model your voice on the Lex column in the FT: short sentences, strong nouns, no adjective stacking. Say the thing once. If a qualifier is needed to make a sentence true, cut the qualifier and rewrite the sentence.
 - Every paragraph leads with the fact or the point — not a scene-setter. Never open a paragraph with "Today's market activity," "The data confirms," "Against a backdrop of," or any sentence that exists only to announce what you are about to say.
 - No compound adjective pileups. "Robust, bifurcated capital environment" is four words for nothing. Write "Deal volume is up; returns are not" instead.
-- No sentences that end by pointing back at the previous one: "This underscores," "This highlights," "This signals," "This suggests," "This indicates." If it is worth saying, say it directly.
-- Banned words: "robust," "bifurcated," "nuanced," "narrative," "landscape," "ecosystem," "paradigm," "trajectory," "increasingly," "potentially," "differentiated," "sophisticated," "actionable," "strategic shift," "offensive play," "defensive play," "capital deployment," "alpha generation," "value creation," "structural demand," "it remains to be seen," "amidst broader," "underlying economic."
+- No pointing back. Never end a sentence with: "This underscores," "This highlights," "This signals," "This suggests," "This indicates," "This reflects," "contributing to," "showcasing," "demonstrating." If it is worth saying, say it directly as its own sentence.
+- No present participle tacking. Do not add an "-ing" clause to the end of a sentence to simulate depth. "...highlighting the trend toward consolidation" and "...reflecting broader caution" are padding. Write the observation as its own sentence or cut it.
+- Use "is" and "are." Do not substitute "serves as," "stands as," "marks," "represents," or "functions as" for a direct copula. "Ares is the buyer" not "Ares serves as the acquiring party."
+- No rule of three. Do not force ideas into groups of three to sound comprehensive. Two real points beat three padded ones.
+- No vague attribution. Do not write "observers note," "experts argue," "analysts believe," or "industry sources suggest" without naming who specifically.
+- No negative parallelism. Do not write "It is not just X; it is Y." Write Y.
+- Vary sentence length deliberately. Short sentences carry weight. A longer one can carry context. Never write three sentences of the same structure back to back.
+- Banned words and phrases: "robust," "bifurcated," "nuanced," "landscape," "ecosystem," "paradigm," "trajectory," "increasingly," "potentially," "differentiated," "sophisticated," "actionable," "strategic shift," "capital deployment," "alpha generation," "value creation," "structural demand," "it remains to be seen," "amidst broader," "underlying economic," "vibrant," "pivotal," "crucial," "delve," "tapestry," "interplay," "showcase," "foster," "garner," "testament," "enduring," "groundbreaking," "bespoke," "unlock," "transformative."
 - Numbers anchor prose. If you know the deal size, the fund target, the revenue multiple — use it. Specifics replace adjectives.
 - No separator lines, dashes, bullets, asterisks, or list symbols anywhere in the output except where specified. Section headers only may be bolded. Sentence case for all sub-headings. One idea per paragraph. Clean spacing.
 - Every deal item that has a URL must include that full URL in the output, on its own line, unmodified. Do not shorten, rewrite, or replace URLs with homepage links. Never drop a URL for formatting reasons.
