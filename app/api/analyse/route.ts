@@ -170,8 +170,7 @@ function isSameStory(titleA: string, titleB: string): boolean {
   )
   const wa = words(titleA)
   const wb = words(titleB)
-  let shared = 0
-  for (const w of wa) if (wb.has(w)) shared++
+  const shared = Array.from(wa).filter(w => wb.has(w)).length
   return shared >= 4
 }
 
