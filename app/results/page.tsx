@@ -202,7 +202,7 @@ function ResultsContent() {
         </button>
 
         <h1 className="serif" style={{ fontSize: 34, lineHeight: 1.05, margin: '0 0 4px', letterSpacing: '-.005em' }}>
-          &ldquo;{thesis}&rdquo;
+          {thesis}
         </h1>
         {data && (
           <p style={{ margin: '0 0 22px', fontSize: 14, color: 'var(--ink-mute)' }}>

@@ -261,8 +261,8 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
         <div>
-          <h1 className="serif" style={{ fontSize: isMobile ? 30 : 42, lineHeight: 1.05, margin: 0 }}>
-            What&rsquo;s your <span className="underline-wave">thesis</span>?
+          <h1 className="serif" style={{ fontSize: isMobile ? 28 : 40, lineHeight: 1.05, margin: 0 }}>
+            See if a market is <span className="underline-wave">early</span> or crowded.
           </h1>
           {!isMobile && (
             <p style={{ margin: '8px 0 0', fontSize: 15, color: 'var(--ink-soft)', maxWidth: 560 }}>
@@ -327,7 +327,7 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
           {ready ? (
             <div>
               <div className="serif" style={{ fontSize: isMobile ? 17 : 20, color: 'var(--ink)', marginBottom: 8 }}>
-                &ldquo;{sector} in {geo}&rdquo; — ready to analyse.
+                {sector} in {geo} — ready to analyse.
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => onPin(sector, geo)} style={{ appearance: 'none', border: '1px solid rgba(124,181,24,.55)', background: 'rgba(163,230,53,.18)', color: 'var(--ink)', font: '600 12px Instrument Sans', padding: '7px 14px', borderRadius: 999, cursor: 'default' }}>Pin to Pad</button>
@@ -408,7 +408,7 @@ function PadNote({ note, onMove, onRemove, onSelect }: {
 
   return (
     <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => { setHovered(true); onSelect(note.text) }} onMouseLeave={() => setHovered(false)}
       style={{ position: 'absolute', left: note.x + local.x, top: note.y + local.y, width: 175, minHeight: 110, background: colors.bg, padding: '14px 14px 12px', borderRadius: 2,
         boxShadow: dragging ? '0 24px 40px -16px rgba(43,37,32,.4)' : hovered ? '0 12px 28px -10px rgba(43,37,32,.35), 0 0 0 2px rgba(124,181,24,.5)' : '0 8px 18px -10px rgba(43,37,32,.3), 0 1px 0 rgba(255,255,255,.5) inset',
         transform: `rotate(${note.tilt}deg) ${dragging ? 'scale(1.02)' : hovered ? 'scale(1.02) translateY(-2px)' : ''}`,
@@ -417,7 +417,7 @@ function PadNote({ note, onMove, onRemove, onSelect }: {
       <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', color: 'rgba(43,37,32,.55)' }}>{note.state}</div>
       <div className="serif" style={{ fontSize: 15, lineHeight: 1.25, marginTop: 6, color: 'var(--ink)' }}>{note.text}</div>
       <div className="mono" style={{ marginTop: 10, fontSize: 10, color: 'rgba(43,37,32,.55)', letterSpacing: '.06em' }}>{note.deals30}d/30 · {note.deals90}d/90 · {note.media}m</div>
-      {hovered && <div className="mono" style={{ marginTop: 6, fontSize: 8, letterSpacing: '.12em', color: 'rgba(124,181,24,.8)' }}>TAP TO LOAD ↑</div>}
+      {hovered && <div className="mono" style={{ marginTop: 6, fontSize: 8, letterSpacing: '.12em', color: 'rgba(124,181,24,.8)' }}>LOADED ABOVE · CLICK TO ANALYSE ↑</div>}
       <button onClick={e => { e.stopPropagation(); onRemove(note.id) }} style={{ position: 'absolute', top: 6, right: 6, appearance: 'none', border: 0, background: 'transparent', color: 'rgba(43,37,32,.4)', fontSize: 14, cursor: 'default', padding: 4 }}>×</button>
     </div>
   )
@@ -543,7 +543,7 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
           ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: isMobile ? '0 0 78vw' : '1 1 0', height: 220, borderRadius: 14, background: 'var(--paper)', scrollSnapAlign: 'start' }} />)
           : showing.map((s, i) => (
               <div key={s.sector} style={{ flex: isMobile ? '0 0 78vw' : '1 1 0', minWidth: 0, scrollSnapAlign: 'start' }}>
-                <SectorCard rank={i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />
+                <SectorCard rank={visible - 3 + i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />
               </div>
             ))
         }
@@ -664,7 +664,22 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch('/api/top-sectors').then(r => r.json()).then(d => { setTopSectors(Array.isArray(d) ? d : []); setSectorsLoading(false) }).catch(() => setSectorsLoading(false))
-    fetch('/api/underrated-sectors').then(r => r.json()).then(d => { setUnderrated(Array.isArray(d) ? d : []); setUnderratedLoading(false) }).catch(() => setUnderratedLoading(false))
+    fetch('/api/underrated-sectors')
+      .then(r => r.json())
+      .then(d => {
+        const fresh = Array.isArray(d) && d.length > 0 ? d : null
+        if (fresh) {
+          setUnderrated(fresh)
+          try { localStorage.setItem('premia-momentum-cache', JSON.stringify(fresh)) } catch (_) {}
+        } else {
+          try { const c = localStorage.getItem('premia-momentum-cache'); if (c) setUnderrated(JSON.parse(c)) } catch (_) {}
+        }
+        setUnderratedLoading(false)
+      })
+      .catch(() => {
+        try { const c = localStorage.getItem('premia-momentum-cache'); if (c) setUnderrated(JSON.parse(c)) } catch (_) {}
+        setUnderratedLoading(false)
+      })
     try { const s = localStorage.getItem('premia-pad-notes'); if (s) setPadNotes(JSON.parse(s)) } catch (_) {}
   }, [])
 
