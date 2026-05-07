@@ -39,7 +39,7 @@ Thesis: "${thesis}"
 {
   "sector": "match to one of: Healthcare IT, Climate Infrastructure, B2B SaaS, Fintech, Consumer Tech, Industrial Tech, Real Estate, Energy, Financial Services, Media & Entertainment, Retail & Consumer, Logistics & Supply Chain, Education Tech, Defence & Aerospace, Agriculture Tech, Other",
   "sub_sector": "the specific niche within that sector, as the user stated it — e.g. 'femtech', 'hospital management software', 'buy now pay later'. Use the user's exact words, not a generic label. Leave empty string if the thesis is already at sector level.",
-  "geography": "match to one of: United States, India, United Kingdom, Germany, France, Southeast Asia, Middle East, Australia, China, Other",
+  "geography": "match to one of: United States, India, United Kingdom, Germany, France, Southeast Asia, Middle East, Australia, China, Africa, Nigeria, Kenya, South Africa, Latin America, Brazil, Mexico, Colombia, Indonesia, Vietnam, Turkey, Pakistan, Bangladesh, Eastern Europe, Central Asia, Japan, Other",
   "raw_query": "2-4 words for Google News search — use the sector/product terms only, never investment strategy words like 'roll-ups', 'consolidation', 'vertical integration', 'buyout strategy'. e.g. for 'Healthcare IT roll-ups in the US' → 'healthcare IT'; for 'femtech in the UK' → 'femtech UK'; for 'B2B SaaS Germany' → 'B2B SaaS Germany'"
 }`
 
@@ -204,10 +204,25 @@ const GEO_ALIASES: Record<string, string[]> = {
   'United Kingdom': ['uk', 'u.k.', 'britain', 'british', 'england'],
   'Germany': ['germany', 'german'],
   'France': ['france', 'french'],
-  'Southeast Asia': ['southeast asia', 'sea', 'asean', 'singapore', 'indonesia', 'thailand', 'vietnam', 'malaysia'],
-  'Middle East': ['middle east', 'mena', 'gulf', 'uae', 'saudi', 'qatar'],
+  'Southeast Asia': ['southeast asia', 'sea', 'asean', 'singapore', 'indonesia', 'thailand', 'vietnam', 'malaysia', 'philippines'],
+  'Middle East': ['middle east', 'mena', 'gulf', 'uae', 'saudi', 'qatar', 'kuwait', 'bahrain', 'oman'],
   'Australia': ['australia', 'australian'],
   'China': ['china', 'chinese'],
+  // Emerging / frontier
+  'Africa': ['africa', 'african', 'nigeria', 'nigerian', 'kenya', 'kenyan', 'south africa', 'ghana', 'ethiopia', 'tanzania', 'egypt', 'morocc'],
+  'Latin America': ['latin america', 'latam', 'brazil', 'brazilian', 'mexico', 'mexican', 'colombia', 'colombia', 'chile', 'chilean', 'peru', 'argentina', 'argentinian'],
+  'Turkey': ['turkey', 'turkish', 'türkiye'],
+  'Pakistan': ['pakistan', 'pakistani'],
+  'Bangladesh': ['bangladesh', 'bangladeshi'],
+  'Eastern Europe': ['eastern europe', 'poland', 'polish', 'romania', 'romanian', 'czech', 'hungary', 'hungarian', 'ukraine', 'ukrainian', 'bulgaria'],
+  'Central Asia': ['central asia', 'kazakhstan', 'uzbekistan', 'azerbaij'],
+  'Nigeria': ['nigeria', 'nigerian', 'lagos', 'abuja'],
+  'Kenya': ['kenya', 'kenyan', 'nairobi'],
+  'South Africa': ['south africa', 'south african', 'johannesburg', 'cape town'],
+  'Indonesia': ['indonesia', 'indonesian', 'jakarta'],
+  'Vietnam': ['vietnam', 'vietnamese', 'hanoi', 'ho chi minh'],
+  'Brazil': ['brazil', 'brazilian', 'são paulo', 'sao paulo'],
+  'Mexico': ['mexico', 'mexican'],
 }
 
 function isDealArticle(title: string, geography?: string, rawQuery?: string): boolean {

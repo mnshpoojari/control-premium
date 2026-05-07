@@ -41,6 +41,7 @@ supabase: Client = create_client(
 # ── Feed sources (same as ingest.py) ──────────────────────────────────────────
 
 TIER_1_FEEDS = [
+    # Global PE / M&A
     "https://www.altassets.net/feed",
     "https://www.pehub.com/feed",
     "https://www.pehubnetwork.com/feed",
@@ -50,11 +51,26 @@ TIER_1_FEEDS = [
     "https://www.mergermarket.com/feed",
     "https://www.privateequitywire.co.uk/feed",
     "https://www.unquote.com/feed",
+    "https://www.finsmes.com/feed",
+    "https://www.healthcareprivateequity.com/feed",
+    # Asia
     "https://www.dealstreetasia.com/feed",
     "https://www.vccircle.com/feed",
     "https://e27.co/feed",
-    "https://www.healthcareprivateequity.com/feed",
-    "https://www.finsmes.com/feed",
+    "https://kr-asia.com/feed",
+    "https://www.techinasia.com/feed",
+    # Africa
+    "https://techpoint.africa/feed",
+    "https://disrupt-africa.com/feed",
+    "https://venturesafrica.com/feed",
+    "https://www.africabusiness.com/feed",
+    "https://businessday.ng/feed",
+    # Latin America
+    "https://contxto.com/en/feed/",
+    "https://latamlist.com/feed/",
+    # MENA / emerging
+    "https://wamda.com/feed",
+    "https://propakistani.pk/feed",
 ]
 
 TIER_2_FEEDS = [
@@ -67,9 +83,12 @@ TIER_2_FEEDS = [
     "https://www.arabianbusiness.com/rss",
     "https://www.zawya.com/rss/feed",
     "https://economictimes.indiatimes.com/markets/rss.cms",
+    "https://www.bizcommunity.com/rss/196/1.rss",   # Africa business
+    "https://www.businessinsider.com.au/sai/feed",  # APAC
 ]
 
 TIER_3_QUERIES = [
+    # Mainstream
     "private equity acquisition 2026",
     "M&A deal India 2026",
     "strategic acquisition United States 2026",
@@ -78,6 +97,28 @@ TIER_3_QUERIES = [
     "take private deal 2026",
     "acquisition Singapore 2026",
     "private equity Middle East 2026",
+    # Africa
+    "private equity acquisition Nigeria 2026",
+    "private equity acquisition Kenya 2026",
+    "M&A deal South Africa 2026",
+    "venture capital acquisition Africa 2026",
+    "acquisition Ethiopia Ghana 2026",
+    # Latin America
+    "private equity acquisition Brazil 2026",
+    "M&A deal Mexico 2026",
+    "private equity acquisition Colombia Chile Peru 2026",
+    "acquisition Latin America 2026",
+    # Southeast Asia (beyond Singapore)
+    "acquisition Vietnam Indonesia 2026",
+    "private equity Philippines Thailand Malaysia 2026",
+    "M&A deal Southeast Asia 2026",
+    # Other frontier / emerging
+    "acquisition Turkey 2026",
+    "private equity Egypt Morocco 2026",
+    "M&A deal Pakistan Bangladesh 2026",
+    "acquisition Eastern Europe Poland Romania 2026",
+    "private equity Central Asia Kazakhstan 2026",
+    # Sector-specific global
     '"climate infrastructure" OR "energy transition" acquisition 2026',
     '"fintech" OR "financial technology" acquires OR "takes stake" 2026',
     '"healthtech" OR "digital health" acquisition OR buyout 2026',
