@@ -573,98 +573,42 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
   )
 }
 
-// ── Knob ───────────────────────────────────────────────────────────────────────
-
-function Knob({ angle, setAngle, size = 100 }: { angle: number; setAngle: (a: number) => void; size?: number }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const drag = useRef(false)
-  const startA = useRef(0)
-
-  const onDown = (e: React.PointerEvent) => {
-    drag.current = true
-    const r = ref.current!.getBoundingClientRect()
-    startA.current = Math.atan2(e.clientY - (r.top + r.height/2), e.clientX - (r.left + r.width/2)) * 180 / Math.PI - angle
-    e.preventDefault()
-  }
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      if (!drag.current || !ref.current) return
-      const r = ref.current.getBoundingClientRect()
-      const a = Math.atan2(e.clientY - (r.top + r.height/2), e.clientX - (r.left + r.width/2)) * 180 / Math.PI
-      setAngle(Math.max(-135, Math.min(135, a - startA.current)))
-    }
-    const onUp = () => { drag.current = false }
-    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp)
-    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
-  }, [setAngle])
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div ref={ref} onPointerDown={onDown} style={{ width: size, height: size, borderRadius: '50%', position: 'relative', background: 'radial-gradient(circle at 35% 30%, #f6efe0 0%, #d8cdb6 60%, #a89674 100%)', boxShadow: '0 1px 0 rgba(255,255,255,.7) inset, 0 -3px 8px rgba(0,0,0,.1) inset, 0 12px 24px -10px rgba(43,37,32,.35)', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}>
-        <svg width={size} height={size} style={{ position: 'absolute', inset: 0 }}>
-          {Array.from({ length: 21 }).map((_, i) => {
-            const a = (-135 + 270*(i/20)) * Math.PI/180
-            const r1 = size/2-4, r2 = size/2-(i%5===0?13:8)
-            return <line key={i} x1={size/2+r1*Math.cos(a)} y1={size/2+r1*Math.sin(a)} x2={size/2+r2*Math.cos(a)} y2={size/2+r2*Math.sin(a)} stroke={i%5===0?'rgba(43,37,32,.6)':'rgba(43,37,32,.25)'} strokeWidth={i%5===0?1.5:1} />
-          })}
-        </svg>
-        <div style={{ position: 'absolute', inset: 12, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #fcf7eb 0%, #cabd9f 70%, #847357 100%)', boxShadow: '0 2px 6px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.6) inset', transform: `rotate(${angle}deg)` }}>
-          <div style={{ position: 'absolute', top: 5, left: '50%', transform: 'translateX(-50%)', width: 4, height: size/2-18, background: 'var(--terra)', borderRadius: 2 }} />
-        </div>
-      </div>
-      <div className="mono" style={{ fontSize: 9, letterSpacing: '.18em', color: 'var(--ink-mute)', fontWeight: 600 }}>WINDOW</div>
-    </div>
-  )
-}
-
 // ── MomentumPanel ──────────────────────────────────────────────────────────────
 
 interface UnderratedData { sector: string; count_30d: number; momentum: number }
 
 function MomentumPanel({ data, loading, onSelect, isMobile }: { data: UnderratedData[]; loading: boolean; onSelect: (s: string) => void; isMobile: boolean }) {
-  const [angle, setAngle] = useState(-45)
-  const winLabel = angle < -90 ? '7D' : angle < 0 ? '30D' : angle < 90 ? '60D' : '90D'
   const sorted = [...data].sort((a, b) => b.momentum - a.momentum)
   const max = Math.max(...sorted.map(s => s.momentum), 1.5)
-  const knobSize = isMobile ? 72 : 100
 
   return (
     <div>
       <SectionDivider label="GAINING MOMENTUM" />
       <section className="paper" style={{ padding: isMobile ? '20px 18px' : '24px 26px', marginTop: 14 }}>
         <div className="pin brass" style={{ top: 10, left: '50%', transform: 'translateX(-50%)' }} />
-        {/* Stack vertically on mobile */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 20 : 28, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', alignItems: 'center', gap: isMobile ? 16 : 12, justifyContent: isMobile ? 'flex-start' : 'center' }}>
-            <Knob angle={angle} setAngle={setAngle} size={knobSize} />
-            <div style={{ textAlign: isMobile ? 'left' : 'center' }}>
-              <div className="serif" style={{ fontSize: isMobile ? 24 : 28, lineHeight: 1 }}>{winLabel}</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>turn the dial</div>
-            </div>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 20 : 22 }}>Gaining momentum</h2>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>vs. prior</span>
-            </div>
-            {loading ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 24, borderRadius: 8, background: 'rgba(43,37,32,.06)', marginBottom: 8 }} />) : sorted.length === 0 ? (
-              <p style={{ color: 'var(--ink-mute)', fontSize: 13 }}>Momentum data updates every 4 hours.</p>
-            ) : sorted.map(s => {
-              const pct = Math.round((s.momentum - 1) * 100)
-              const w = Math.min(100, (s.momentum / max) * 100)
-              const color = pct >= 50 ? '#7CB518' : pct >= 20 ? '#A88B4C' : '#B83A26'
-              return (
-                <button key={s.sector} onClick={() => onSelect(s.sector)} style={{ appearance: 'none', border: 'none', background: 'transparent', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 48px' : '160px 1fr 56px', alignItems: 'center', gap: isMobile ? 8 : 12, cursor: 'default', padding: '4px 0', textAlign: 'left', width: '100%' }}>
-                  <span style={{ font: '500 13px Instrument Sans', color: 'var(--ink)' }}>{s.sector}</span>
-                  <div style={{ position: 'relative', height: 14, background: 'rgba(43,37,32,.06)', borderRadius: 7, overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${w}%`, background: `linear-gradient(90deg, ${color}55, ${color}cc)`, borderRadius: 7, transition: 'width .4s cubic-bezier(.2,.9,.2,1.1)' }} />
-                  </div>
-                  <span className="mono" style={{ textAlign: 'right', fontSize: 12, color, fontWeight: 600 }}>+{pct}%</span>
-                </button>
-              )
-            })}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 20 : 22 }}>Gaining momentum</h2>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>30d vs. prior 60d</span>
         </div>
+        {loading
+          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 24, borderRadius: 8, background: 'rgba(43,37,32,.06)', marginBottom: 8 }} />)
+          : sorted.length === 0
+            ? <p style={{ color: 'var(--ink-mute)', fontSize: 13, margin: 0 }}>No momentum data yet.</p>
+            : sorted.map(s => {
+                const pct = Math.round((s.momentum - 1) * 100)
+                const w = Math.min(100, (s.momentum / max) * 100)
+                const color = pct >= 50 ? '#7CB518' : pct >= 20 ? '#A88B4C' : '#B83A26'
+                return (
+                  <button key={s.sector} onClick={() => onSelect(s.sector)} style={{ appearance: 'none', border: 'none', background: 'transparent', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 48px' : '160px 1fr 56px', alignItems: 'center', gap: isMobile ? 8 : 12, cursor: 'default', padding: '6px 0', textAlign: 'left', width: '100%', borderBottom: '1px dashed rgba(43,37,32,.08)' }}>
+                    <span style={{ font: '500 13px Instrument Sans', color: 'var(--ink)' }}>{s.sector}</span>
+                    <div style={{ position: 'relative', height: 14, background: 'rgba(43,37,32,.06)', borderRadius: 7, overflow: 'hidden' }}>
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${w}%`, background: `linear-gradient(90deg, ${color}55, ${color}cc)`, borderRadius: 7, transition: 'width .4s cubic-bezier(.2,.9,.2,1.1)' }} />
+                    </div>
+                    <span className="mono" style={{ textAlign: 'right', fontSize: 12, color, fontWeight: 600 }}>+{pct}%</span>
+                  </button>
+                )
+              })
+        }
       </section>
     </div>
   )
