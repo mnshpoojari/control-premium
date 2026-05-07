@@ -162,8 +162,9 @@ function ResultsContent() {
   }
 
   const meta = data ? (STATE_META[data.consensus.state] ?? STATE_META['QUIET']) : null
-  const confColor = !data ? '#8C7E6F' : data.stats.confidence === 'high' ? '#7CB518' : data.stats.confidence === 'medium' ? '#A88B4C' : '#B83A26'
-  const confLabel = !data ? '' : data.stats.confidence === 'high' ? 'High confidence' : data.stats.confidence === 'medium' ? 'Medium confidence' : 'Low confidence'
+  const confColor = !data ? '#8C7E6F' : data.stats.confidence === 'high' ? '#7CB518' : data.stats.confidence === 'medium' ? '#A88B4C' : '#8C7E6F'
+  const confLabel = !data ? '' : data.stats.confidence === 'high' ? 'Dense signal' : data.stats.confidence === 'medium' ? 'Building signal' : 'Emerging signal'
+  const confSub = !data ? '' : data.stats.confidence === 'high' ? 'Broad dataset — well-documented theme.' : data.stats.confidence === 'medium' ? 'Moderate coverage — trend is forming.' : 'Sparse dataset — in frontier markets, this can be alpha.'
 
   const confBars = data ? [
     { label: 'Data volume',   pct: Math.min(95, 30 + data.stats.count_90d * 2) },
@@ -240,6 +241,9 @@ function ResultsContent() {
                   <span className="mono" style={{ display: 'inline-block', padding: '5px 11px', borderRadius: 999, background: 'rgba(255,255,255,.55)', border: `1px solid ${confColor}55`, color: confColor, fontSize: 11, letterSpacing: '.1em', fontWeight: 600 }}>
                     {confLabel.toUpperCase()}
                   </span>
+                  {data.stats.confidence === 'low' && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: 'var(--ink-mute)', fontStyle: 'italic' }}>Sparse data in this market may itself be signal.</div>
+                  )}
                 </div>
               </div>
 
@@ -280,8 +284,9 @@ function ResultsContent() {
               </div>
 
               <div className="paper" style={{ padding: '18px 20px' }}>
-                <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 6 }}>CONFIDENCE BREAKDOWN</div>
-                <div className="serif" style={{ fontSize: 22, color: confColor, lineHeight: 1, marginBottom: 14 }}>{confLabel}</div>
+                <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 6 }}>SIGNAL COVERAGE</div>
+                <div className="serif" style={{ fontSize: 22, color: confColor, lineHeight: 1, marginBottom: 6 }}>{confLabel}</div>
+                <p style={{ fontSize: 12, color: 'var(--ink-mute)', lineHeight: 1.5, marginBottom: 14 }}>{confSub}</p>
                 {confBars.map(({ label, pct: barPct }) => (
                   <div key={label} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 36px', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px dashed rgba(43,37,32,.14)' }}>
                     <span style={{ font: '500 12px Instrument Sans', color: 'var(--ink-soft)' }}>{label}</span>
