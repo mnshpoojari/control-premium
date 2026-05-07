@@ -163,13 +163,17 @@ const TITLE_STOP_WORDS = new Set([
   'its', 'are', 'was', 'been', 'into', 'new', 'over', 'deal', 'company',
 ])
 
-function isSameStory(titleA: string, titleB: string): boolean {
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
+
+function isSameStory(a: NewsItem, b: NewsItem): boolean {
+  // Must be published within 2 days of each other to be the same story
+  if (Math.abs(a.pub.getTime() - b.pub.getTime()) > TWO_DAYS_MS) return false
   const words = (t: string) => new Set(
     t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
       .filter(w => w.length > 3 && !TITLE_STOP_WORDS.has(w))
   )
-  const wa = words(titleA)
-  const wb = words(titleB)
+  const wa = words(a.title)
+  const wb = words(b.title)
   const shared = Array.from(wa).filter(w => wb.has(w)).length
   return shared >= 4
 }
@@ -177,7 +181,7 @@ function isSameStory(titleA: string, titleB: string): boolean {
 function deduplicateByContent(items: NewsItem[]): NewsItem[] {
   const kept: NewsItem[] = []
   for (const item of items) {
-    if (!kept.some(k => isSameStory(k.title, item.title))) kept.push(item)
+    if (!kept.some(k => isSameStory(k, item))) kept.push(item)
   }
   return kept
 }
