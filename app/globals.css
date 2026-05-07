@@ -54,8 +54,9 @@ body {
 .underline-wave {
   text-decoration: underline;
   text-decoration-style: wavy;
-  text-underline-offset: 4px;
+  text-underline-offset: 8px;
   text-decoration-color: var(--accent-deep);
+  text-decoration-thickness: 2px;
 }
 
 @keyframes glow-pulse {

@@ -102,7 +102,7 @@ function MarketTempoGauge({ score, accent = '#7CB518' }: { score: number; accent
         {ticks.map((t, i) => <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={t.strong ? 'rgba(43,37,32,.45)' : 'rgba(43,37,32,.2)'} strokeWidth={t.strong ? 1.5 : 1} />)}
         <circle cx={nx} cy={ny} r={10} fill="#FAF8F3" stroke={accent} strokeWidth="3" />
         <circle cx={nx} cy={ny} r={4} fill={accent} />
-        <text x={cx} y={H - 8} textAnchor="middle" fontFamily="var(--font-serif, serif)" fontSize="32" fontWeight="400" fill="var(--ink)">{score}</text>
+        <text x={cx} y={H - 8} textAnchor="middle" fontFamily="var(--font-serif, 'Young Serif', Georgia, serif)" fontSize="32" fontWeight="400" fill="var(--ink)">{score}</text>
       </svg>
       <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginTop: -4 }}>MARKET TEMPO</div>
     </div>

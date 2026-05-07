@@ -116,7 +116,7 @@ function TypeOrDrop({ label, value, onChange, options, color, accent }: {
             onBlur={() => setTimeout(() => { setOpen(false); onChange(text.trim()) }, 150)}
             onKeyDown={onKey}
             placeholder="type or pick…"
-            style={{ border: 0, outline: 'none', background: 'transparent', font: `400 18px/1.2 var(--font-serif, serif)`, color: 'var(--ink)', width: '100%', padding: '2px 0' }}
+            style={{ border: 0, outline: 'none', background: 'transparent', font: `400 18px/1.2 var(--font-serif, 'Young Serif', Georgia, serif)`, color: 'var(--ink)', width: '100%', padding: '2px 0' }}
           />
         </div>
         {filled && <button onMouseDown={e => { e.preventDefault(); setText(''); onChange('') }} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'var(--ink-mute)', fontSize: 18, cursor: 'default', padding: 4, lineHeight: 1 }}>×</button>}
@@ -283,7 +283,7 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 12, alignItems: 'stretch', margin: '18px 0 16px' }}>
         <TypeOrDrop label="Sector" value={sector} onChange={setSector} options={SECTORS_LIST} color="rgba(184,58,38,.10)" accent="rgba(184,58,38,.5)" />
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, color: 'var(--ink-mute)', font: `400 16px var(--font-serif, serif)` }}>in</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, color: 'var(--ink-mute)', font: `400 16px var(--font-serif, 'Young Serif', Georgia, serif)` }}>in</div>
         )}
         <TypeOrDrop label="Geography" value={geo} onChange={setGeo} options={GEOS_LIST} color="rgba(163,230,53,.16)" accent="rgba(124,181,24,.55)" />
         <button
