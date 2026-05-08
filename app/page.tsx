@@ -227,6 +227,66 @@ function StrengthDial({ value = 8, max = 50, accent = '#8C7E6F' }: { value?: num
   )
 }
 
+// ── AnimatedHero ───────────────────────────────────────────────────────────────
+
+const HERO_SECTORS = ['Healthcare', 'Fintech', 'Real Estate', 'Climatetech', 'Logistics', 'Agritech', 'B2B SaaS']
+const HERO_GEOS    = ['India', 'the USA', 'the UAE', 'Germany', 'Brazil', 'Indonesia', 'Nigeria']
+
+function AnimatedHero({ isMobile }: { isMobile: boolean }) {
+  const [sectorIdx, setSectorIdx] = useState(0)
+  const [geoIdx,    setGeoIdx]    = useState(0)
+  const [sectorKey, setSectorKey] = useState(0)
+  const [geoKey,    setGeoKey]    = useState(0)
+
+  // Sector rotates every 2.5s starting immediately
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSectorIdx(i => (i + 1) % HERO_SECTORS.length)
+      setSectorKey(k => k + 1)
+    }, 2500)
+    return () => clearInterval(id)
+  }, [])
+
+  // Geography rotates every 2.5s but starts 1.25s later — staggered
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>
+    const timeoutId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        setGeoIdx(i => (i + 1) % HERO_GEOS.length)
+        setGeoKey(k => k + 1)
+      }, 2500)
+    }, 1250)
+    return () => { clearTimeout(timeoutId); clearInterval(intervalId) }
+  }, [])
+
+  const wordStyle: React.CSSProperties = {
+    display: 'inline-block',
+    color: 'var(--accent-deep)',
+    borderBottom: '2px solid var(--accent-deep)',
+    paddingBottom: 1,
+    whiteSpace: 'nowrap',
+  }
+
+  return (
+    <div style={{ textAlign: 'center', padding: isMobile ? '24px 0 8px' : '32px 0 12px' }}>
+      <h2 className="serif" style={{ fontSize: isMobile ? 22 : 32, lineHeight: 1.3, margin: '0 0 10px', color: 'var(--ink)', fontWeight: 400 }}>
+        Is{' '}
+        <span key={sectorKey} className="word-in" style={wordStyle}>
+          {HERO_SECTORS[sectorIdx]}
+        </span>
+        {' '}in{' '}
+        <span key={geoKey + 100} className="word-in" style={wordStyle}>
+          {HERO_GEOS[geoIdx]}
+        </span>
+        {' '}overheated or still early?
+      </h2>
+      <p style={{ margin: 0, fontSize: isMobile ? 13 : 15, color: 'var(--ink-mute)', fontWeight: 400, letterSpacing: '.01em' }}>
+        Find out in seconds.
+      </p>
+    </div>
+  )
+}
+
 // ── SignalBoard ────────────────────────────────────────────────────────────────
 
 function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
@@ -686,6 +746,7 @@ export default function HomePage() {
 
       <main style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '4px 14px 48px' : '8px 32px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 24 }}>
+          <AnimatedHero isMobile={isMobile} />
           <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} preset={padPreset} />
           <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} onSelect={handlePadSelect} />
           <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />

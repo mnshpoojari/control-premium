@@ -70,3 +70,14 @@ body {
   50%       { opacity: .5; }
 }
 .shimmer { animation: shimmer 1.6s ease-in-out infinite; }
+
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes word-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+.word-in  { animation: word-in  .28s cubic-bezier(.2,.9,.2,1) forwards; }
+.word-out { animation: word-out .2s  ease-in forwards; }
