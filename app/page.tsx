@@ -227,67 +227,10 @@ function StrengthDial({ value = 8, max = 50, accent = '#8C7E6F' }: { value?: num
   )
 }
 
-// ── AnimatedHero ───────────────────────────────────────────────────────────────
+// ── SignalBoard ────────────────────────────────────────────────────────────────
 
 const HERO_SECTORS = ['Healthcare', 'Fintech', 'Real Estate', 'Climatetech', 'Logistics', 'Agritech', 'B2B SaaS']
 const HERO_GEOS    = ['India', 'the USA', 'the UAE', 'Germany', 'Brazil', 'Indonesia', 'Nigeria']
-
-function AnimatedHero({ isMobile }: { isMobile: boolean }) {
-  const [sectorIdx, setSectorIdx] = useState(0)
-  const [geoIdx,    setGeoIdx]    = useState(0)
-  const [sectorKey, setSectorKey] = useState(0)
-  const [geoKey,    setGeoKey]    = useState(0)
-
-  // Sector rotates every 2.5s starting immediately
-  useEffect(() => {
-    const id = setInterval(() => {
-      setSectorIdx(i => (i + 1) % HERO_SECTORS.length)
-      setSectorKey(k => k + 1)
-    }, 2500)
-    return () => clearInterval(id)
-  }, [])
-
-  // Geography rotates every 2.5s but starts 1.25s later — staggered
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval>
-    const timeoutId = setTimeout(() => {
-      intervalId = setInterval(() => {
-        setGeoIdx(i => (i + 1) % HERO_GEOS.length)
-        setGeoKey(k => k + 1)
-      }, 2500)
-    }, 1250)
-    return () => { clearTimeout(timeoutId); clearInterval(intervalId) }
-  }, [])
-
-  const wordStyle: React.CSSProperties = {
-    display: 'inline-block',
-    color: 'var(--accent-deep)',
-    borderBottom: '2px solid var(--accent-deep)',
-    paddingBottom: 1,
-    whiteSpace: 'nowrap',
-  }
-
-  return (
-    <div style={{ textAlign: 'center', padding: isMobile ? '24px 0 8px' : '32px 0 12px' }}>
-      <h2 className="serif" style={{ fontSize: isMobile ? 22 : 32, lineHeight: 1.3, margin: '0 0 10px', color: 'var(--ink)', fontWeight: 400 }}>
-        Is{' '}
-        <span key={sectorKey} className="word-in" style={wordStyle}>
-          {HERO_SECTORS[sectorIdx]}
-        </span>
-        {' '}in{' '}
-        <span key={geoKey + 100} className="word-in" style={wordStyle}>
-          {HERO_GEOS[geoIdx]}
-        </span>
-        {' '}overheated or still early?
-      </h2>
-      <p style={{ margin: 0, fontSize: isMobile ? 13 : 15, color: 'var(--ink-mute)', fontWeight: 400, letterSpacing: '.01em' }}>
-        Find out in seconds.
-      </p>
-    </div>
-  )
-}
-
-// ── SignalBoard ────────────────────────────────────────────────────────────────
 
 function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
   onAnalyse: (t: string) => void; onPin: (s: string, g: string) => void
@@ -297,11 +240,36 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
   const [geo, setGeo] = useState('')
   const [shuffle, setShuffle] = useState(0)
   const [btnPressed, setBtnPressed] = useState(false)
+  const [heroSectorIdx, setHeroSectorIdx] = useState(0)
+  const [heroGeoIdx,    setHeroGeoIdx]    = useState(0)
+  const [heroSectorKey, setHeroSectorKey] = useState(0)
+  const [heroGeoKey,    setHeroGeoKey]    = useState(0)
   const ready = !!(sector && geo)
 
   useEffect(() => {
     if (preset) { setSector(preset.sector); setGeo(preset.geo) }
   }, [preset])
+
+  // Sector rotates every 3.5s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeroSectorIdx(i => (i + 1) % HERO_SECTORS.length)
+      setHeroSectorKey(k => k + 1)
+    }, 3500)
+    return () => clearInterval(id)
+  }, [])
+
+  // Geography rotates every 3.5s, staggered 1.75s behind sector
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>
+    const timeoutId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        setHeroGeoIdx(i => (i + 1) % HERO_GEOS.length)
+        setHeroGeoKey(k => k + 1)
+      }, 3500)
+    }, 1750)
+    return () => { clearTimeout(timeoutId); clearInterval(intervalId) }
+  }, [])
 
   const sectorPool = useMemo(() => {
     const pool = SECTORS_LIST.filter(s => s.label !== sector)
@@ -322,14 +290,20 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
         <div>
-          <h1 className="serif" style={{ fontSize: isMobile ? 28 : 40, lineHeight: 1.05, margin: 0 }}>
-            See if a market is <span className="underline-wave">early</span> or crowded.
+          <h1 className="serif" style={{ fontSize: isMobile ? 26 : 38, lineHeight: 1.15, margin: 0 }}>
+            Is{' '}
+            <span key={heroSectorKey} className="word-in" style={{ display: 'inline-block', color: 'var(--accent-deep)', borderBottom: '2px solid var(--accent-deep)', paddingBottom: 1, whiteSpace: 'nowrap' }}>
+              {HERO_SECTORS[heroSectorIdx]}
+            </span>
+            {' '}in{' '}
+            <span key={heroGeoKey + 100} className="word-in" style={{ display: 'inline-block', color: 'var(--terra)', borderBottom: '2px solid var(--terra)', paddingBottom: 1, whiteSpace: 'nowrap' }}>
+              {HERO_GEOS[heroGeoIdx]}
+            </span>
+            {' '}overheated or still early?
           </h1>
-          {!isMobile && (
-            <p style={{ margin: '8px 0 0', fontSize: 15, color: 'var(--ink-soft)', maxWidth: 560 }}>
-              Type a sector and geography — or tap chips below. Premia tells you if you&rsquo;re early, on time, or late.
-            </p>
-          )}
+          <p style={{ margin: '8px 0 0', fontSize: isMobile ? 13 : 15, color: 'var(--ink-soft)', maxWidth: 560 }}>
+            Find out in seconds.
+          </p>
         </div>
         {!isMobile && (
           <button onClick={() => setShuffle(s => s + 1)} style={{
@@ -746,7 +720,6 @@ export default function HomePage() {
 
       <main style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '4px 14px 48px' : '8px 32px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 24 }}>
-          <AnimatedHero isMobile={isMobile} />
           <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} preset={padPreset} />
           <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} onSelect={handlePadSelect} />
           <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />
