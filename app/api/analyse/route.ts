@@ -56,7 +56,34 @@ Thesis: "${thesis}"
 
 type Maturity = 'MATURE' | 'EMERGING' | 'NASCENT'
 
+// Hardcoded overrides for unambiguously mature sector/geo combinations.
+// Keyed as "sector_lowercase|geo_lowercase". Bypasses Gemini to avoid
+// misclassification of well-established markets as EMERGING.
+const KNOWN_MATURE: Record<string, string> = {
+  'b2b saas|united states': 'US enterprise software has been a mature PE and strategic M&A market since the early 2010s.',
+  'fintech|united states': 'US fintech is a deep, consolidated market with decades of deal history.',
+  'healthcare it|united states': 'US healthcare IT is a well-established category with consistent institutional deal flow.',
+  'financial services|united states': 'US financial services M&A is among the most active and mature deal markets globally.',
+  'logistics & supply chain|united states': 'US logistics is a mature, heavily consolidated sector.',
+  'real estate|united states': 'US commercial real estate M&A has decades of institutional capital behind it.',
+  'energy|united states': 'US energy M&A is a century-old, highly liquid market.',
+  'media & entertainment|united states': 'US media M&A is a mature, well-documented sector.',
+  'b2b saas|united kingdom': 'UK enterprise software has been an active deal market for over two decades.',
+  'financial services|united kingdom': 'UK financial services is one of the deepest M&A markets globally.',
+  'fintech|united kingdom': 'UK fintech is a mature, well-capitalised market anchored by London.',
+  'b2b saas|germany': 'German Mittelstand software M&A is a mature and active category.',
+  'financial services|germany': 'German financial services M&A has deep institutional roots.',
+  'energy|middle east': 'Middle East energy is dominated by sovereign capital with decades of transaction history.',
+  'financial services|india': 'Indian financial services M&A is a mature and highly active category.',
+  'real estate|united kingdom': 'UK commercial real estate is a deep, liquid institutional market.',
+}
+
 async function classifyMaturity(thesis: string, sector: string, geography: string): Promise<{ maturity: Maturity; reason: string }> {
+  const key = `${sector.toLowerCase()}|${geography.toLowerCase()}`
+  if (KNOWN_MATURE[key]) {
+    return { maturity: 'MATURE', reason: KNOWN_MATURE[key] }
+  }
+
   const prompt = `You are a senior investment analyst. Classify the maturity of this investment thesis based on your knowledge of how long this sector has been active in this geography, the depth of existing capital deployed, and how consolidated the market is.
 
 Thesis: "${thesis}"
@@ -70,9 +97,11 @@ Return ONLY JSON:
 }
 
 Guidelines:
-- MATURE: sector has decades of established deal flow in this geography, large incumbents, well-understood by LPs and strategics (e.g. Oil in Saudi Arabia, US Healthcare M&A, European Financial Services)
-- EMERGING: sector is active and growing but still developing its deal ecosystem in this geography, meaningful but not saturated (e.g. India SaaS, Southeast Asia Fintech, Africa Agritech)
-- NASCENT: genuinely new theme, limited precedent transactions, buyer universe still forming (e.g. AI Infrastructure in MENA, Carbon Credits in LatAm)`
+- MATURE: sector has been an active deal market in this geography for 10+ years, with large incumbents, established buyer universes, and well-understood valuations. Default to MATURE when in doubt for US, UK, Germany, and Western Europe across most sectors. Examples: B2B SaaS in US, Fintech in US/UK, Healthcare IT in US, Financial Services in US/UK/Germany, Oil & Gas in US/Middle East, Logistics in US, Real Estate in US/UK.
+- EMERGING: sector is active and growing but still developing its deal ecosystem in this geography, meaningful but not yet saturated. Examples: SaaS in India/Southeast Asia, Fintech in Africa/Latin America, Healthtech in Middle East.
+- NASCENT: genuinely new theme with limited precedent transactions, buyer universe still forming. Examples: AI Infrastructure in MENA, Carbon Credits in LatAm, Agritech in Central Asia.
+
+When the sector is well-established globally (SaaS, Fintech, Healthcare IT, Logistics, Financial Services) and the geography is a developed market (US, UK, Germany, France, Australia, Japan), classify as MATURE unless there is a specific reason it is underdeveloped there.`
 
   try {
     const result = await gemini.generateContent(prompt)
