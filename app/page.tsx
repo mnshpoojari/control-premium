@@ -299,10 +299,10 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
             <span key={heroGeoKey + 100} className="word-in" style={{ display: 'inline-block', color: 'var(--terra)', borderBottom: '2px solid var(--terra)', paddingBottom: 1, whiteSpace: 'nowrap' }}>
               {HERO_GEOS[heroGeoIdx]}
             </span>
-            {' '}overheated or still early?
+            {' '}overcrowded or still early?
           </h1>
           <p style={{ margin: '8px 0 0', fontSize: isMobile ? 13 : 15, color: 'var(--ink-soft)', maxWidth: 560 }}>
-            Find out in seconds.
+            Type a sector and country. Get an analysis in seconds.
           </p>
         </div>
         {!isMobile && (
@@ -485,7 +485,7 @@ function ThesisPad({ notes, setNotes, isMobile, onSelect }: { notes: PadNote[]; 
 
   return (
     <div>
-      <SectionDivider label="YOUR THESIS PAD" />
+      <SectionDivider label="YOUR IDEAS PAD" />
       <div style={{ marginTop: 14 }}>
         <div style={{ position: 'relative', height: boardH, borderRadius: 14, background: '#3A2A1E',
           backgroundImage: `repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 2px, transparent 2px 6px), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='c'><feTurbulence baseFrequency='1.4' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.22  0 0 0 0 0.13  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>")`,
@@ -494,7 +494,7 @@ function ThesisPad({ notes, setNotes, isMobile, onSelect }: { notes: PadNote[]; 
           <div className="pin brass" style={{ top: 14, right: 14 }} />
           <div className="pin brass" style={{ bottom: 14, left: 14 }} />
           <div className="pin brass" style={{ bottom: 14, right: 14 }} />
-          <div className="mono" style={{ position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 9, letterSpacing: '.24em', color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap' }}>THESIS PAD · drag freely</div>
+          <div className="mono" style={{ position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 9, letterSpacing: '.24em', color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap' }}>IDEAS PAD · drag freely</div>
           {notes.length === 0 ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <div style={{ width: 40, height: 40, borderRadius: 2, background: '#E9F4C9', opacity: .4, transform: 'rotate(-3deg)' }} />

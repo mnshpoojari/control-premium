@@ -31,8 +31,8 @@ interface AnalyseResult {
 
 const STATE_META: Record<string, { color: string; bg: string; label: string; blurb: string }> = {
   'EARLY SIGNAL': { color: '#7CB518', bg: 'rgba(163,230,53,.18)', label: 'Early Signal',
-    blurb: "Deal flow is outpacing media. The narrative hasn't formed yet — you're ahead of the page." },
-  'CONSENSUS':    { color: '#A88B4C', bg: 'rgba(168,139,76,.16)', label: 'Consensus',
+    blurb: "Recent activity is outpacing media. The narrative hasn't formed yet — you're ahead of the page." },
+  'CONSENSUS':    { color: '#A88B4C', bg: 'rgba(168,139,76,.16)', label: 'Crowded',
     blurb: 'Deals and coverage in lockstep. The theme is well-formed; most participants already see it.' },
   'HYPE':         { color: '#B83A26', bg: 'rgba(184,58,38,.12)', label: 'Hype',
     blurb: 'Coverage is running ahead of capital. Narrative without follow-through — proceed with skepticism.' },
@@ -41,9 +41,9 @@ const STATE_META: Record<string, { color: string; bg: string; label: string; blu
   'ACTIVE':       { color: '#A88B4C', bg: 'rgba(168,139,76,.16)', label: 'Active',
     blurb: 'Strong, sustained deal activity in a well-established theme. Capital is actively deploying.' },
   'ESTABLISHED':  { color: '#7CB518', bg: 'rgba(163,230,53,.18)', label: 'Established',
-    blurb: 'A mature market with consistent deal flow. Opportunity is in differentiation, not discovery.' },
+    blurb: 'A mature market with consistent recent activity. Opportunity is in differentiation, not discovery.' },
   'NARRATIVE':    { color: '#B83A26', bg: 'rgba(184,58,38,.12)', label: 'Narrative',
-    blurb: 'Media coverage outpacing deal flow in a mature sector. Stories are getting ahead of reality.' },
+    blurb: 'Media coverage outpacing recent activity in a mature sector. Stories are getting ahead of reality.' },
   'COOLING':      { color: '#8C7E6F', bg: 'rgba(140,126,111,.14)', label: 'Cooling',
     blurb: 'Activity is slowing. The theme had its run; deploy selectively if at all.' },
 }
