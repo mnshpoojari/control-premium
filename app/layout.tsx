@@ -24,8 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Premia — Deal intelligence for deal professionals',
-  description: "Type a sector and geography. Premia tells you if you're early, on time, or late.",
+  title: 'Premia — Understanding where the money is moving',
+  description: "Type a sector and country. Get an analysis in seconds.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
