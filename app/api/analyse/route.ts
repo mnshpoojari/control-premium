@@ -343,7 +343,7 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
   // Evidence links: only actual deal articles shown to the user, geo + topic filtered
   const dealItems = sorted.filter(item => isDealArticle(item.title, geography, rawQuery))
-  const evidenceItems = (dealItems.length >= 3 ? dealItems : sorted)
+  const evidenceItems = dealItems
     .slice(0, 5)
     .map(({ pub: _, ...rest }) => rest)
 
