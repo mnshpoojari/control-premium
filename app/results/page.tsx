@@ -26,7 +26,7 @@ interface AnalyseResult {
     confidence: 'high' | 'medium' | 'low'
   }
   thesis: string
-  evidence: { title: string; url: string; published_date: string; source: string }[]
+  evidence: { title: string; url: string; published_date: string; source: string; isTranslated?: boolean }[]
 }
 
 const STATE_META: Record<string, { color: string; bg: string; label: string; blurb: string }> = {
@@ -325,9 +325,10 @@ function ResultsContent() {
                       onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'none'; el.style.boxShadow = 'none' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ font: '500 14px Instrument Sans', color: 'var(--ink)', marginBottom: 4 }}>{item.title}</div>
-                        <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-mute)' }}>
+                        <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-mute)', alignItems: 'center' }}>
                           <span className="mono">{item.source}</span>
                           <span className="mono">{item.published_date}</span>
+                          {item.isTranslated && <span className="mono" style={{ color: 'var(--brass)', letterSpacing: '.06em' }}>translated</span>}
                         </div>
                       </div>
                       <span style={{ color: '#7CB518', fontSize: 18, opacity: .7 }}>↗</span>

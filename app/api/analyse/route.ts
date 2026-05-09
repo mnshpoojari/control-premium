@@ -121,12 +121,15 @@ interface NewsItem {
   published_date: string
   source: string
   pub: Date
+  isLocal?: boolean
+  originalTitle?: string  // set after translation; original language title
 }
 
-async function fetchNewsItems(query: string): Promise<NewsItem[]> {
+async function fetchNewsItems(query: string, locale?: { hl: string; gl: string; ceid: string }): Promise<NewsItem[]> {
   try {
     const parser = new Parser({ timeout: 6000 })
-    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`
+    const { hl = 'en-US', gl = 'US', ceid = 'US:en' } = locale ?? {}
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${hl}&gl=${gl}&ceid=${ceid}`
     const feed = await parser.parseURL(url)
     return feed.items
       .filter(item => item.title && item.link)
@@ -258,63 +261,140 @@ const GEO_ALIASES: Record<string, string[]> = {
   'Mexico': ['mexico', 'mexican'],
 }
 
-function isDealArticle(title: string, geography?: string, rawQuery?: string): boolean {
+// Non-English Google News locales — keyed by geography name.
+// Items fetched with these locales are tagged isLocal=true and translated before filtering.
+const LOCALE_MAP: Record<string, { hl: string; gl: string; ceid: string }[]> = {
+  'Japan':          [{ hl: 'ja',    gl: 'JP', ceid: 'JP:ja'       }],
+  'Germany':        [{ hl: 'de',    gl: 'DE', ceid: 'DE:de'       }],
+  'France':         [{ hl: 'fr',    gl: 'FR', ceid: 'FR:fr'       }],
+  'Brazil':         [{ hl: 'pt-BR', gl: 'BR', ceid: 'BR:pt-BR'    }],
+  'Mexico':         [{ hl: 'es',    gl: 'MX', ceid: 'MX:es'       }],
+  'Colombia':       [{ hl: 'es',    gl: 'CO', ceid: 'CO:es'       }],
+  'Indonesia':      [{ hl: 'id',    gl: 'ID', ceid: 'ID:id'       }],
+  'Vietnam':        [{ hl: 'vi',    gl: 'VN', ceid: 'VN:vi'       }],
+  'Turkey':         [{ hl: 'tr',    gl: 'TR', ceid: 'TR:tr'       }],
+  'China':          [{ hl: 'zh-CN', gl: 'CN', ceid: 'CN:zh-Hans'  }],
+  'Middle East':    [{ hl: 'ar',    gl: 'SA', ceid: 'SA:ar'       }],
+  'Eastern Europe': [{ hl: 'pl',    gl: 'PL', ceid: 'PL:pl'       },
+                     { hl: 'ro',    gl: 'RO', ceid: 'RO:ro'       }],
+  'Central Asia':   [{ hl: 'ru',    gl: 'KZ', ceid: 'KZ:ru'       }],
+  'Bangladesh':     [{ hl: 'bn',    gl: 'BD', ceid: 'BD:bn'       }],
+  'Southeast Asia': [{ hl: 'th',    gl: 'TH', ceid: 'TH:th'       }],
+}
+
+// Translate local-language titles to English in a single Gemini batch call.
+// Mutates items in place: sets item.title = translated, item.originalTitle = original.
+async function translateTitles(items: NewsItem[]): Promise<void> {
+  const localItems = items.filter(i => i.isLocal)
+  if (localItems.length === 0) return
+
+  const titles = localItems.map(i => i.title)
+  const prompt = `Translate these news headlines to English. Return ONLY a JSON array of strings, same count and order. Preserve company names, brand names, and proper nouns exactly. If a headline is already in English, return it unchanged.
+
+Headlines: ${JSON.stringify(titles)}`
+
+  try {
+    const result = await gemini.generateContent(prompt)
+    const raw = result.response.text().trim()
+    const cleaned = raw.includes('```') ? raw.split('```')[1].replace(/^json\s*/, '').trim() : raw
+    const translated = JSON.parse(cleaned) as string[]
+    if (Array.isArray(translated) && translated.length === localItems.length) {
+      localItems.forEach((item, idx) => {
+        if (translated[idx] && translated[idx] !== item.title) {
+          item.originalTitle = item.title
+          item.title = translated[idx]
+        }
+      })
+    }
+  } catch {
+    // Translation failed — local items keep original titles; English filters will drop most of them
+  }
+}
+
+function isDealArticle(title: string, geography?: string, rawQuery?: string, isLocal?: boolean): boolean {
   const t = title.toLowerCase()
   if (NOISE_PATTERNS.some(p => t.includes(p))) return false
   if (!DEAL_KEYWORDS.some(kw => t.includes(kw))) return false
   if (rawQuery && !isTopicRelevant(title, rawQuery)) return false
-  // If geography is known, require at least one geo term in the title to filter cross-geo noise
-  if (geography && geography !== 'Other') {
+  // Local items are already geo-scoped by locale params — skip the geo-alias-in-title check
+  if (!isLocal && geography && geography !== 'Other') {
     const aliases = GEO_ALIASES[geography] ?? [geography.toLowerCase()]
     if (!aliases.some(a => t.includes(a))) return false
   }
   return true
 }
 
-async function getDealData(sector: string, geography: string, rawQuery: string) {
+async function getDealData(geography: string, rawQuery: string) {
   const cutoff365 = nDaysAgo(365)
   const cutoff90 = nDaysAgo(90)
   const cutoff30 = nDaysAgo(30)
 
-  // No quotes around rawQuery — exact phrase match kills results for multi-word terms.
-  // Geography quoted because it's a known proper noun.
   const geoClause = geography !== 'Other' ? ` "${geography}"` : ''
-  const q = rawQuery  // unquoted: Google News treats terms as AND
-  const queries = [
+  const q = rawQuery
+
+  // English queries with geo clause
+  const englishQueries = [
     `${q}${geoClause} acquires OR acquired OR merger OR "takes stake" OR buyout OR "roll-up"`,
     `${q}${geoClause} raises OR "funding round" OR "series a" OR "series b" OR "series c" OR "growth equity"`,
     `${q}${geoClause} "joint venture" OR "strategic investment" OR "equity stake" OR "strategic partnership"`,
     `${q}${geoClause} "seed round" OR "venture capital" OR "backs" OR "secures funding"`,
   ]
 
-  const batches = await Promise.all(queries.map(fetchNewsItems))
+  // Local-language queries — no geo clause; locale params handle geography
+  const locales = LOCALE_MAP[geography] ?? []
+  const localQueries: Array<{ query: string; locale: { hl: string; gl: string; ceid: string } }> =
+    locales.flatMap(locale => [
+      { query: `${q} acquisition OR merger OR funding`, locale },
+      { query: `${q} investment OR stake OR "series"`, locale },
+    ])
+
+  // Fetch English and local-language results in parallel
+  const [englishBatches, localBatches] = await Promise.all([
+    Promise.all(englishQueries.map(eq => fetchNewsItems(eq))),
+    Promise.all(localQueries.map(({ query, locale }) => fetchNewsItems(query, locale))),
+  ])
 
   const geoAliases = geography !== 'Other' ? (GEO_ALIASES[geography] ?? [geography.toLowerCase()]) : null
 
   const seenUrls = new Set<string>()
   const rawItems: NewsItem[] = []
-  for (const batch of batches) {
+
+  // Process English batches — apply geo cross-contamination + topic filters immediately
+  for (const batch of englishBatches) {
     for (const item of batch) {
-      if (!seenUrls.has(item.url) && item.pub >= cutoff365) {
-        // Drop items where the title clearly refers to a different geography
-        if (geoAliases) {
-          const t = item.title.toLowerCase()
-          const hasGeo = geoAliases.some(a => t.includes(a))
-          const otherGeos = ['india', 'china', 'uk', 'germany', 'france', 'australia', 'singapore', 'uae', 'saudi']
-            .filter(g => !geoAliases.includes(g))
-          const hasOtherGeo = otherGeos.some(g => t.includes(g))
-          if (hasOtherGeo && !hasGeo) continue
-        }
-        // Drop off-topic articles (e.g. political "defence" for "Defence in India")
-        if (!isTopicRelevant(item.title, rawQuery)) continue
-        seenUrls.add(item.url)
-        rawItems.push(item)
+      if (seenUrls.has(item.url) || item.pub < cutoff365) continue
+      if (geoAliases) {
+        const t = item.title.toLowerCase()
+        const hasGeo = geoAliases.some(a => t.includes(a))
+        const otherGeos = ['india', 'china', 'uk', 'germany', 'france', 'australia', 'singapore', 'uae', 'saudi']
+          .filter(g => !geoAliases.includes(g))
+        const hasOtherGeo = otherGeos.some(g => t.includes(g))
+        if (hasOtherGeo && !hasGeo) continue
       }
+      if (!isTopicRelevant(item.title, rawQuery)) continue
+      seenUrls.add(item.url)
+      rawItems.push(item)
     }
   }
 
+  // Process local batches — defer filtering until after translation
+  for (const batch of localBatches) {
+    for (const item of batch) {
+      if (seenUrls.has(item.url) || item.pub < cutoff365) continue
+      item.isLocal = true
+      seenUrls.add(item.url)
+      rawItems.push(item)
+    }
+  }
+
+  // Translate all local titles in one Gemini batch call, then filter
+  await translateTitles(rawItems)
+  const filteredItems = rawItems.filter(item =>
+    !item.isLocal || isTopicRelevant(item.title, rawQuery)
+  )
+
   // Deduplicate same story reported by multiple outlets (≥4 shared content words)
-  const items = deduplicateByContent(rawItems)
+  const items = deduplicateByContent(filteredItems)
 
   const monthMap = new Map<string, number>()
   let count30d = 0
@@ -341,14 +421,20 @@ async function getDealData(sector: string, geography: string, rawQuery: string) 
 
   const sorted = [...items].sort((a, b) => b.pub.getTime() - a.pub.getTime())
 
-  // Evidence links: only actual deal articles shown to the user, geo + topic filtered
-  const dealItems = sorted.filter(item => isDealArticle(item.title, geography, rawQuery))
+  // Evidence links: geo + topic filtered; local items skip the geo-alias-in-title check
+  const dealItems = sorted.filter(item => isDealArticle(item.title, geography, rawQuery, item.isLocal))
   const evidenceItems = dealItems
     .slice(0, 5)
-    .map(({ pub: _, ...rest }) => rest)
+    .map(item => ({
+      title: item.title,
+      url: item.url,
+      published_date: item.published_date,
+      source: item.source,
+      isTranslated: !!item.originalTitle,
+    }))
 
-  // Synthesis context: all items including research reports, for Gemini to reason from
-  const synthesisItems = sorted.slice(0, 15).map(({ pub: _, ...rest }) => rest)
+  // Synthesis context: all items for Gemini to reason from (includes translated local articles)
+  const synthesisItems = sorted.slice(0, 15).map(({ pub: _, isLocal: __, originalTitle: ___, ...rest }) => rest)
 
   return { chartData, evidenceItems, synthesisItems, count30d, count90d }
 }
@@ -583,7 +669,7 @@ export async function POST(req: NextRequest) {
     // Steps 1b + 2 + 3 in parallel
     const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, mediaCount90d] = await Promise.all([
       classifyMaturity(thesis, sector, geography),
-      getDealData(sector, geography, raw_query),
+      getDealData(geography, raw_query),
       getMediaMentionCount(raw_query),
     ])
 
