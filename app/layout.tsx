@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Premia — Understanding where the money is moving',
+  title: 'Premia — Understanding where money is moving',
   description: "Type a sector and country. Get an analysis in seconds.",
 }
 

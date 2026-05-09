@@ -728,7 +728,7 @@ export default function HomePage() {
       </main>
 
       <footer style={{ padding: isMobile ? '12px 16px' : '16px 32px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-mute)' }}>
-        Premia · Understanding where the money is moving
+        Premia · Understanding where money is moving
         <span style={{ margin: '0 8px' }}>·</span>
         <a href="mailto:manishapoojari48@gmail.com" style={{ color: 'var(--ink-soft)', fontWeight: 600, textDecoration: 'none' }}>Contact</a>
       </footer>
