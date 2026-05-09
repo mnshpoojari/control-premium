@@ -81,3 +81,5 @@ body {
 }
 .word-in  { animation: word-in  .28s cubic-bezier(.2,.9,.2,1) forwards; }
 .word-out { animation: word-out .2s  ease-in forwards; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }

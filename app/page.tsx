@@ -568,37 +568,28 @@ function SectorCard({ rank, sector, count_30d, count_90d, onClick }: { rank: num
 }
 
 function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]; loading: boolean; onSelect: (s: string) => void; isMobile: boolean }) {
-  const [visible, setVisible] = useState(3)
-  const showing = data.slice(visible - 3, visible)
+  const cardW = isMobile ? '78vw' : 'calc(33.33% - 10px)'
 
   return (
     <div>
       <SectionDivider label="WHAT'S MOVING RIGHT NOW" />
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '14px 0 14px' }}>
-        <div>
-          <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 22 : 26 }}>What&rsquo;s moving right now</h2>
-          {!isMobile && <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--ink-mute)' }}>Live deal flow across tracked sectors.</p>}
-        </div>
-        {data.length > 3 && (
-          <button onClick={() => setVisible(v => v >= data.length ? 3 : Math.min(v + 1, data.length))}
-            style={{ flexShrink: 0, appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.5)', padding: '7px 12px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default' }}>
-            next →
-          </button>
-        )}
+      <div style={{ margin: '14px 0 14px' }}>
+        <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 22 : 26 }}>What&rsquo;s moving right now</h2>
+        {!isMobile && <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--ink-mute)' }}>Live deal flow across tracked sectors.</p>}
       </div>
-      {/* On mobile: horizontal scroll carousel. On desktop: horizontal flex */}
       <div style={{
         display: 'flex', flexDirection: 'row', gap: 14,
-        overflowX: isMobile ? 'auto' : 'visible',
-        paddingBottom: isMobile ? 6 : 0,
-        scrollSnapType: isMobile ? 'x mandatory' : 'none',
+        overflowX: 'auto', paddingBottom: 8,
+        scrollSnapType: 'x mandatory',
         WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
       }}>
         {loading
-          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: isMobile ? '0 0 78vw' : '1 1 0', height: 220, borderRadius: 14, background: 'var(--paper)', scrollSnapAlign: 'start' }} />)
-          : showing.map((s, i) => (
-              <div key={s.sector} style={{ flex: isMobile ? '0 0 78vw' : '1 1 0', minWidth: 0, scrollSnapAlign: 'start' }}>
-                <SectorCard rank={visible - 3 + i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />
+          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ flex: `0 0 ${cardW}`, height: 220, borderRadius: 14, background: 'var(--paper)', scrollSnapAlign: 'start' }} />)
+          : data.map((s, i) => (
+              <div key={s.sector} style={{ flex: `0 0 ${cardW}`, minWidth: 0, scrollSnapAlign: 'start' }}>
+                <SectorCard rank={i + 1} sector={s.sector} count_30d={s.count_30d} count_90d={s.count_90d} onClick={() => onSelect(s.sector)} />
               </div>
             ))
         }
