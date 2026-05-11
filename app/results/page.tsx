@@ -326,7 +326,7 @@ function ResultsContent() {
         </button>
 
         {/* Title — always visible immediately from URL param */}
-        <h1 style={{ fontSize: isMobile ? 26 : 34, lineHeight: 1.1, margin: '0 0 6px', letterSpacing: '-.01em', fontFamily: "var(--font-sans, 'Instrument Sans', sans-serif)", fontWeight: 600 }}>
+        <h1 className="serif" style={{ fontSize: isMobile ? 26 : 34, lineHeight: 1.1, margin: '0 0 6px', letterSpacing: '-.01em', fontWeight: 400 }}>
           {thesis}
         </h1>
 
@@ -442,7 +442,7 @@ function ResultsContent() {
                   <div className="serif" style={{ fontSize: 18, color: 'var(--ink)', marginBottom: 14, fontWeight: 400 }}>What the data says</div>
                   <div style={{ borderLeft: '2px solid rgba(43,37,32,.18)', paddingLeft: 18 }}>
                     {data.thesis.split('\n\n').filter(Boolean).map((para, i) => (
-                      <p key={i} style={{ fontSize: 15, lineHeight: 1.7, margin: '0 0 14px', fontFamily: "var(--font-sans, 'Instrument Sans', sans-serif)", fontWeight: 400, color: 'var(--ink-soft)' }}>{para}</p>
+                      <p key={i} style={{ fontSize: 15, lineHeight: 1.7, margin: '0 0 14px', fontFamily: "var(--font-sans, 'Instrument Sans', sans-serif)", fontWeight: 400, color: 'var(--ink)' }}>{para}</p>
                     ))}
                   </div>
                 </section>
@@ -467,7 +467,7 @@ function ResultsContent() {
                           onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-1px)'; el.style.boxShadow = '0 6px 14px -10px rgba(43,37,32,.25)' }}
                           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'none'; el.style.boxShadow = 'none' }}>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ font: '500 14px Instrument Sans', color: 'var(--ink)', marginBottom: 4 }}>{item.title}</div>
+                            <div style={{ fontFamily: "var(--font-sans, 'Instrument Sans', sans-serif)", fontSize: 15, fontWeight: 500, color: 'var(--ink)', marginBottom: 5, lineHeight: 1.4 }}>{item.title}</div>
                             <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-mute)', alignItems: 'center' }}>
                               <span className="mono">{item.source}</span>
                               <span className="mono">{item.published_date}</span>
