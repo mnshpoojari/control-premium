@@ -598,6 +598,104 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
   )
 }
 
+// ── ProductDemo ───────────────────────────────────────────────────────────────
+
+const DEMO_EVIDENCE = [
+  { title: 'Razorpay acquires B2B payments firm Ezetap in all-stock deal', source: 'techcrunch.com', date: '2025-04-14' },
+  { title: 'PayU leads ₹180Cr round in embedded finance startup Juspay', source: 'economictimes.indiatimes.com', date: '2025-03-29' },
+  { title: 'Goldman Sachs-backed Navi secures growth equity from Accel Partners', source: 'moneycontrol.com', date: '2025-03-11' },
+]
+
+const DEMO_STATS = [
+  { label: 'Deals · 30d',  value: '18', sub: 'accelerating' },
+  { label: 'Deals · 90d',  value: '47', sub: 'transactions tracked' },
+  { label: 'Sources',       value: '14', sub: 'unique outlets' },
+  { label: 'Signal gap',   value: '+11', sub: 'deals ahead of media' },
+]
+
+function ProductDemo({ isMobile }: { isMobile: boolean }) {
+  return (
+    <div>
+      <SectionDivider label="EXAMPLE ANALYSIS" />
+      <div style={{ marginBottom: 14, marginTop: 14 }}>
+        <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 22 : 26 }}>Here&rsquo;s what you get</h2>
+        <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--ink-mute)' }}>A live result for &ldquo;Fintech in India&rdquo; — type your own thesis above.</p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: 0.92, pointerEvents: 'none', userSelect: 'none' }}>
+
+        {/* Verdict block */}
+        <section style={{ background: 'rgba(163,230,53,.18)', border: '1px solid rgba(124,181,24,.35)', borderRadius: 14, padding: isMobile ? '18px 20px' : '22px 26px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 1px), rgba(43,37,32,.05) 100%)', backgroundSize: '100% 22px', position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: isMobile ? 12 : 24, alignItems: 'flex-start', position: 'relative' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#7CB518', boxShadow: '0 0 0 4px rgba(124,181,24,.25)', display: 'inline-block', flexShrink: 0 }} />
+                <span className="serif" style={{ fontSize: isMobile ? 22 : 26, color: '#7CB518' }}>Early Signal</span>
+              </div>
+              <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6 }}>Recent activity is outpacing media. The narrative hasn&rsquo;t fully formed — you&rsquo;re ahead of the page.</p>
+            </div>
+            <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+              <span className="mono" style={{ display: 'inline-block', padding: '5px 11px', borderRadius: 999, background: 'rgba(255,255,255,.55)', border: '1px solid rgba(124,181,24,.4)', color: '#7CB518', fontSize: 11, letterSpacing: '.1em', fontWeight: 600 }}>DENSE SIGNAL</span>
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', marginTop: 18, background: 'rgba(255,255,255,.45)', border: '1px solid rgba(43,37,32,.10)', borderRadius: 12 }}>
+            {DEMO_STATS.map((t, i) => (
+              <div key={i} style={{
+                padding: isMobile ? '10px 12px' : '14px 18px',
+                borderRight: isMobile ? (i % 2 === 0 ? '1px dashed rgba(43,37,32,.16)' : 'none') : (i < 3 ? '1px dashed rgba(43,37,32,.16)' : 'none'),
+                borderBottom: isMobile && i < 2 ? '1px dashed rgba(43,37,32,.16)' : 'none',
+              }}>
+                <div className="mono" style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-mute)' }}>{t.label.toUpperCase()}</div>
+                <div className="num" style={{ fontSize: isMobile ? 24 : 30, lineHeight: 1.05, marginTop: 4, color: i === 3 ? '#7CB518' : 'var(--ink)' }}>{t.value}</div>
+                <div style={{ fontSize: 11, marginTop: 2, color: 'var(--ink-mute)' }}>{t.sub}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Narrative */}
+        <section className="paper" style={{ padding: isMobile ? '18px 20px' : '22px 26px' }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 10 }}>WHAT THE DATA SAYS</div>
+          <div style={{ borderLeft: '2px solid rgba(43,37,32,.18)', paddingLeft: 18 }}>
+            <p className="serif" style={{ fontSize: isMobile ? 14 : 16, lineHeight: 1.65, margin: '0 0 12px', color: 'var(--ink)' }}>
+              India&rsquo;s fintech sector has been one of the most active deal markets in Asia for the past decade, underpinned by a mobile-first population of 1.4 billion and a sustained regulatory push toward digital payments infrastructure. Deal volume has accelerated through early 2025, with 18 transactions recorded in the last 30 days — a material step-up from the prior period&rsquo;s pace.
+            </p>
+            {!isMobile && (
+              <p className="serif" style={{ fontSize: 16, lineHeight: 1.65, margin: 0, color: 'var(--ink)' }}>
+                The compression of rounds into the Series B–D range points to a maturing cohort approaching exit readiness. Buyers are a mix of strategic acquirers from banking and insurance, and international PE firms building India exposure ahead of what looks like a 12–18 month IPO window.
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* Evidence */}
+        <section>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 4 }}>WHAT&apos;S DRIVING THE SIGNAL</div>
+          <div className="serif" style={{ fontSize: isMobile ? 17 : 20, marginBottom: 12 }}>Recent transactions &amp; mentions</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {DEMO_EVIDENCE.slice(0, isMobile ? 2 : 3).map((item, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'center', background: '#FAF8F3', border: '1px solid rgba(43,37,32,.10)', borderRadius: 12, padding: '14px 18px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '500 14px Instrument Sans', color: 'var(--ink)', marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-mute)' }}>
+                    <span className="mono">{item.source}</span>
+                    <span className="mono">{item.date}</span>
+                  </div>
+                </div>
+                <span style={{ color: '#7CB518', fontSize: 18, opacity: .5 }}>↗</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -653,6 +751,7 @@ export default function HomePage() {
       <main style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '4px 14px 48px' : '8px 32px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 24 }}>
           <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} preset={padPreset} />
+          <ProductDemo isMobile={isMobile} />
           <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} onSelect={handlePadSelect} />
           <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />
         </div>
