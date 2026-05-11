@@ -155,7 +155,7 @@ function ChipRow({ items, kind, active, onSelect }: { items: Opt[]; kind: 'secto
               display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999,
               border: `1px solid ${isActive ? 'rgba(124,181,24,.55)' : isLifted ? 'rgba(43,37,32,.35)' : 'rgba(43,37,32,.18)'}`,
               background: isActive ? 'rgba(163,230,53,.18)' : isLifted ? '#FAF8F3' : 'rgba(255,255,255,.55)',
-              color: 'var(--ink)', font: '500 12px Instrument Sans', cursor: 'grab',
+              color: 'var(--ink)', font: `600 12px var(--font-sans, 'Instrument Sans', sans-serif)`, cursor: 'grab',
               transform: isLifted ? 'scale(1.1) translateY(-4px) rotate(-1deg)' : 'scale(1) translateY(0)',
               boxShadow: isLifted ? '0 12px 28px -8px rgba(43,37,32,.3), 0 2px 0 rgba(255,255,255,.7) inset' : 'none',
               transition: isLifted ? 'transform .08s ease-out, box-shadow .08s ease-out' : 'all .18s ease',
