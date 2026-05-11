@@ -231,6 +231,7 @@ function ResultsContent() {
   const [msgIdx, setMsgIdx] = useState(0)
   const [msgKey, setMsgKey] = useState(0)
   const [revealed, setRevealed] = useState({ verdict: false, chart: false, narrative: false, evidence: false })
+  const [pinPressed, setPinPressed] = useState(false)
 
   useEffect(() => {
     if (!thesis) { router.push('/'); return }
@@ -294,7 +295,24 @@ function ResultsContent() {
           </span>
         </button>
         {data && (
-          <button onClick={handlePin} style={{ appearance: 'none', border: '1px solid rgba(124,181,24,.55)', background: 'rgba(163,230,53,.18)', color: 'var(--ink)', font: '600 12px Instrument Sans', padding: '7px 14px', borderRadius: 999, cursor: 'default' }}>
+          <button
+            onClick={handlePin}
+            onPointerDown={() => setPinPressed(true)}
+            onPointerUp={() => setPinPressed(false)}
+            onPointerLeave={() => setPinPressed(false)}
+            style={{
+              appearance: 'none',
+              border: '1px solid rgba(124,181,24,.55)',
+              background: pinPressed ? 'rgba(163,230,53,.32)' : 'rgba(163,230,53,.18)',
+              color: 'var(--ink)',
+              font: '600 12px Instrument Sans',
+              padding: '7px 14px',
+              borderRadius: 999,
+              cursor: 'default',
+              transform: pinPressed ? 'scale(0.95) translateY(1px)' : 'scale(1) translateY(0)',
+              boxShadow: pinPressed ? 'none' : '0 2px 6px -3px rgba(124,181,24,.5), 0 1px 0 rgba(255,255,255,.5) inset',
+              transition: pinPressed ? 'transform .06s ease-out, box-shadow .06s ease-out' : 'all .15s ease',
+            }}>
             Pin to Pad
           </button>
         )}
