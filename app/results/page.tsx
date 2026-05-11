@@ -326,7 +326,7 @@ function ResultsContent() {
         </button>
 
         {/* Title — always visible immediately from URL param */}
-        <h1 className="serif" style={{ fontSize: isMobile ? 26 : 34, lineHeight: 1.05, margin: '0 0 6px', letterSpacing: '-.005em' }}>
+        <h1 style={{ fontSize: isMobile ? 26 : 34, lineHeight: 1.1, margin: '0 0 6px', letterSpacing: '-.01em', fontFamily: "var(--font-sans, 'Instrument Sans', sans-serif)", fontWeight: 600 }}>
           {thesis}
         </h1>
 
@@ -439,10 +439,10 @@ function ResultsContent() {
             {revealed.narrative && data ? (
               <div className="fade-up">
                 <section className="paper" style={{ padding: '22px 26px' }}>
-                  <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 10 }}>WHAT THE DATA SAYS</div>
+                  <div className="serif" style={{ fontSize: 18, color: 'var(--ink)', marginBottom: 14, fontWeight: 400 }}>What the data says</div>
                   <div style={{ borderLeft: '2px solid rgba(43,37,32,.18)', paddingLeft: 18 }}>
                     {data.thesis.split('\n\n').filter(Boolean).map((para, i) => (
-                      <p key={i} className="serif" style={{ fontSize: 16, lineHeight: 1.6, margin: '0 0 12px' }}>{para}</p>
+                      <p key={i} style={{ fontSize: 15, lineHeight: 1.7, margin: '0 0 14px', fontFamily: "var(--font-sans, 'Instrument Sans', sans-serif)", fontWeight: 400, color: 'var(--ink-soft)' }}>{para}</p>
                     ))}
                   </div>
                 </section>
