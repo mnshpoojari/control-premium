@@ -598,55 +598,12 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
   )
 }
 
-// ── MomentumPanel ──────────────────────────────────────────────────────────────
-
-interface UnderratedData { sector: string; count_30d: number; momentum: number }
-
-function MomentumPanel({ data, loading, onSelect, isMobile }: { data: UnderratedData[]; loading: boolean; onSelect: (s: string) => void; isMobile: boolean }) {
-  const sorted = [...data].sort((a, b) => b.momentum - a.momentum)
-  const max = Math.max(...sorted.map(s => s.momentum), 1.5)
-
-  return (
-    <div>
-      <SectionDivider label="GAINING MOMENTUM" />
-      <section className="paper" style={{ padding: isMobile ? '20px 18px' : '24px 26px', marginTop: 14 }}>
-        <div className="pin brass" style={{ top: 10, left: '50%', transform: 'translateX(-50%)' }} />
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 className="serif" style={{ margin: 0, fontSize: isMobile ? 20 : 22 }}>Gaining momentum</h2>
-          <span className="mono" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>30d vs. prior 60d</span>
-        </div>
-        {loading
-          ? [1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 24, borderRadius: 8, background: 'rgba(43,37,32,.06)', marginBottom: 8 }} />)
-          : sorted.length === 0
-            ? <p style={{ color: 'var(--ink-mute)', fontSize: 13, margin: 0 }}>No momentum data yet.</p>
-            : sorted.map(s => {
-                const pct = Math.round((s.momentum - 1) * 100)
-                const w = Math.min(100, (s.momentum / max) * 100)
-                const color = pct >= 50 ? '#7CB518' : pct >= 20 ? '#A88B4C' : '#B83A26'
-                return (
-                  <button key={s.sector} onClick={() => onSelect(s.sector)} style={{ appearance: 'none', border: 'none', background: 'transparent', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 48px' : '160px 1fr 56px', alignItems: 'center', gap: isMobile ? 8 : 12, cursor: 'default', padding: '6px 0', textAlign: 'left', width: '100%', borderBottom: '1px dashed rgba(43,37,32,.08)' }}>
-                    <span style={{ font: '500 13px Instrument Sans', color: 'var(--ink)' }}>{s.sector}</span>
-                    <div style={{ position: 'relative', height: 14, background: 'rgba(43,37,32,.06)', borderRadius: 7, overflow: 'hidden' }}>
-                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${w}%`, background: `linear-gradient(90deg, ${color}55, ${color}cc)`, borderRadius: 7, transition: 'width .4s cubic-bezier(.2,.9,.2,1.1)' }} />
-                    </div>
-                    <span className="mono" style={{ textAlign: 'right', fontSize: 12, color, fontWeight: 600 }}>+{pct}%</span>
-                  </button>
-                )
-              })
-        }
-      </section>
-    </div>
-  )
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const router = useRouter()
   const [topSectors, setTopSectors] = useState<SectorData[]>([])
-  const [underrated, setUnderrated] = useState<UnderratedData[]>([])
   const [sectorsLoading, setSectorsLoading] = useState(true)
-  const [underratedLoading, setUnderratedLoading] = useState(true)
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
   const [padPreset, setPadPreset] = useState<{ sector: string; geo: string } | null>(null)
   const [{ dateStr }] = useState(() => getMarketStatus())
@@ -654,22 +611,6 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch('/api/top-sectors').then(r => r.json()).then(d => { setTopSectors(Array.isArray(d) ? d : []); setSectorsLoading(false) }).catch(() => setSectorsLoading(false))
-    fetch('/api/underrated-sectors')
-      .then(r => r.json())
-      .then(d => {
-        const fresh = Array.isArray(d) && d.length > 0 ? d : null
-        if (fresh) {
-          setUnderrated(fresh)
-          try { localStorage.setItem('premia-momentum-cache', JSON.stringify(fresh)) } catch (_) {}
-        } else {
-          try { const c = localStorage.getItem('premia-momentum-cache'); if (c) setUnderrated(JSON.parse(c)) } catch (_) {}
-        }
-        setUnderratedLoading(false)
-      })
-      .catch(() => {
-        try { const c = localStorage.getItem('premia-momentum-cache'); if (c) setUnderrated(JSON.parse(c)) } catch (_) {}
-        setUnderratedLoading(false)
-      })
     try { const s = localStorage.getItem('premia-pad-notes'); if (s) setPadNotes(JSON.parse(s)) } catch (_) {}
   }, [])
 
@@ -714,7 +655,6 @@ export default function HomePage() {
           <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} preset={padPreset} />
           <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} onSelect={handlePadSelect} />
           <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />
-          <MomentumPanel data={underrated} loading={underratedLoading} onSelect={handleAnalyse} isMobile={isMobile} />
         </div>
       </main>
 
