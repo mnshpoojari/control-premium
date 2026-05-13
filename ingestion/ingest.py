@@ -18,7 +18,8 @@ import logging
 import os
 import time
 import urllib.parse
-from datetime import datetime, timezone
+import urllib.request
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -66,6 +67,10 @@ TIER_1_FEEDS = [
     "https://e27.co/feed",
     "https://www.healthcareprivateequity.com/feed",
     "https://www.finsmes.com/feed",
+    # Legal / governance commentary — high signal for announced deals
+    "https://corpgov.law.harvard.edu/feed/",
+    # India exchange filings (BSE corporate announcements)
+    "https://trendlyne.com/bse-corporate-announcements/feed/",
 ]
 
 TIER_2_FEEDS = [
@@ -79,33 +84,50 @@ TIER_2_FEEDS = [
     "https://www.arabianbusiness.com/rss",
     "https://www.zawya.com/rss/feed",
     "https://economictimes.indiatimes.com/markets/rss.cms",
+    # India M&A and GlobeNewswire PE press releases
+    "https://www.business-standard.com/rss/companies-101.rss",
+    "https://www.globenewswire.com/RssFeed/industry/9133-private-equity",
 ]
 
 TIER_3_QUERIES = [
-    "private equity acquisition 2025",
-    "M&A deal India 2025",
-    "strategic acquisition United States 2025",
-    "private equity buyout Europe 2025",
-    "majority stake acquisition 2025",
-    "take private deal 2025",
-    "carve out divestiture 2025",
-    "acquisition Singapore 2025",
-    "private equity Middle East 2025",
-    "acquisition Australia 2025",
-    "M&A Japan 2025",
-    "acquisition South Korea 2025",
-    "private equity China 2025",
-    "acquisition Africa 2025",
-    "Brazil acquisition OR private equity 2025",
-    '"climate infrastructure" OR "energy transition" acquisition 2025',
-    '"fintech" OR "financial technology" acquires OR "takes stake" 2025',
-    '"healthtech" OR "digital health" acquisition OR buyout 2025',
-    '"SaaS" OR "B2B software" private equity buyout 2025',
-    '"logistics" OR "supply chain" acquisition stake 2025',
-    '"agritech" OR "agriculture technology" acquisition 2025',
-    '"growth equity" investment 2025',
-    '"family office" acquisition 2025',
-    '"sovereign wealth fund" acquisition stake 2025',
+    "private equity acquisition 2026",
+    "M&A deal India 2026",
+    "strategic acquisition United States 2026",
+    "private equity buyout Europe 2026",
+    "majority stake acquisition 2026",
+    "take private deal 2026",
+    "carve out divestiture 2026",
+    "acquisition Singapore 2026",
+    "private equity Middle East 2026",
+    "acquisition Australia 2026",
+    "M&A Japan 2026",
+    "acquisition South Korea 2026",
+    "private equity China 2026",
+    "acquisition Africa 2026",
+    "Brazil acquisition OR private equity 2026",
+    '"climate infrastructure" OR "energy transition" acquisition 2026',
+    '"fintech" OR "financial technology" acquires OR "takes stake" 2026',
+    '"healthtech" OR "digital health" acquisition OR buyout 2026',
+    '"SaaS" OR "B2B software" private equity buyout 2026',
+    '"logistics" OR "supply chain" acquisition stake 2026',
+    '"agritech" OR "agriculture technology" acquisition 2026',
+    '"growth equity" investment 2026',
+    '"family office" acquisition 2026',
+    '"sovereign wealth fund" acquisition stake 2026',
+    # Formal deal language — picks up press-release-style announcements
+    '"definitive agreement" acquisition 2026',
+    '"binding offer" acquisition 2026',
+    '"letter of intent" acquisition merger 2026',
+    '"signs agreement" OR "completes acquisition" 2026',
+    # India SEBI / exchange-level filings
+    '"open offer" India SEBI 2026',
+    '"preferential allotment" acquisition India 2026',
+    '"block deal" India stake 2026',
+    # Gulf sovereign wealth funds
+    '"Mubadala" OR "ADIA" acquisition stake 2026',
+    '"PIF" OR "Public Investment Fund" acquisition 2026',
+    '"QIA" OR "Qatar Investment Authority" stake 2026',
+    '"ADQ" OR "KIPCO" acquisition 2026',
 ]
 
 DEAL_KEYWORDS = [
@@ -168,6 +190,47 @@ def extract_json_array(text: str) -> list:
             except json.JSONDecodeError:
                 continue
     return json.loads(text)
+
+
+def fetch_edgar_items() -> list[dict]:
+    """Fetch recent 8-K M&A filings from SEC EDGAR full-text search API."""
+    today = datetime.now(timezone.utc).date()
+    start = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    url = (
+        "https://efts.sec.gov/LATEST/search-index?q=%22acquisition%22+OR+%22merger%22"
+        f"&forms=8-K&dateRange=custom&startdt={start}&enddt={today}"
+    )
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Premia/1.0 mnshpoojari@gmail.com"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        hits = data.get("hits", {}).get("hits", [])
+        items = []
+        for hit in hits:
+            src = hit.get("_source", {})
+            entity = src.get("entity_name", "Unknown")
+            file_date = src.get("file_date", "")
+            accession = src.get("accession_no", "").replace("-", "")
+            cik = str(src.get("entity_id", "")).lstrip("0")
+            filing_url = (
+                f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/"
+                if cik and accession else "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K"
+            )
+            items.append({
+                "title": f"{entity} files 8-K: merger/acquisition",
+                "snippet": f"SEC EDGAR 8-K filing dated {file_date}",
+                "url": filing_url,
+                "source": "SEC EDGAR",
+                "published_date": file_date or None,
+            })
+        log.info(f"Fetched {len(items):>3} items  ←  SEC EDGAR EFTS")
+        return items
+    except Exception as e:
+        log.warning(f"EDGAR fetch failed  ({e})")
+        return []
 
 
 # ── Core pipeline steps ────────────────────────────────────────────────────────
@@ -322,6 +385,12 @@ def main():
         i, u, _ = process_items(items)
         total_i += i
         total_u += u
+
+    log.info("── SEC EDGAR 8-K filings ─────────────────────────────────────────")
+    items = fetch_edgar_items()
+    i, u, _ = process_items(items)
+    total_i += i
+    total_u += u
 
     log.info(f"── Complete — inserted: {total_i}  updated: {total_u} ─────────────")
 

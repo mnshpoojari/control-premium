@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import urllib.parse
+import urllib.request
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -53,6 +54,10 @@ TIER_1_FEEDS = [
     "https://www.unquote.com/feed",
     "https://www.finsmes.com/feed",
     "https://www.healthcareprivateequity.com/feed",
+    # Legal / governance commentary
+    "https://corpgov.law.harvard.edu/feed/",
+    # India exchange filings
+    "https://trendlyne.com/bse-corporate-announcements/feed/",
     # Asia
     "https://www.dealstreetasia.com/feed",
     "https://www.vccircle.com/feed",
@@ -85,6 +90,9 @@ TIER_2_FEEDS = [
     "https://economictimes.indiatimes.com/markets/rss.cms",
     "https://www.bizcommunity.com/rss/196/1.rss",   # Africa business
     "https://www.businessinsider.com.au/sai/feed",  # APAC
+    # India M&A and GlobeNewswire PE press releases
+    "https://www.business-standard.com/rss/companies-101.rss",
+    "https://www.globenewswire.com/RssFeed/industry/9133-private-equity",
 ]
 
 TIER_3_QUERIES = [
@@ -125,6 +133,20 @@ TIER_3_QUERIES = [
     '"SaaS" OR "B2B software" private equity buyout 2026',
     '"logistics" OR "supply chain" acquisition stake 2026',
     '"sovereign wealth fund" acquisition stake 2026',
+    # Formal deal language
+    '"definitive agreement" acquisition 2026',
+    '"binding offer" acquisition 2026',
+    '"letter of intent" acquisition merger 2026',
+    '"signs agreement" OR "completes acquisition" 2026',
+    # India SEBI / exchange-level filings
+    '"open offer" India SEBI 2026',
+    '"preferential allotment" acquisition India 2026',
+    '"block deal" India stake 2026',
+    # Gulf sovereign wealth funds
+    '"Mubadala" OR "ADIA" acquisition stake 2026',
+    '"PIF" OR "Public Investment Fund" acquisition 2026',
+    '"QIA" OR "Qatar Investment Authority" stake 2026',
+    '"ADQ" OR "KIPCO" acquisition 2026',
 ]
 
 DEAL_KEYWORDS = [
@@ -215,6 +237,43 @@ SECTOR_KEYWORDS: dict[str, list[str]] = {
 }
 
 
+# ── EDGAR helper ──────────────────────────────────────────────────────────────
+
+def fetch_edgar_items() -> list[dict]:
+    """Fetch recent 8-K M&A filings from SEC EDGAR full-text search API."""
+    today = datetime.now(timezone.utc).date()
+    start = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    url = (
+        "https://efts.sec.gov/LATEST/search-index?q=%22acquisition%22+OR+%22merger%22"
+        f"&forms=8-K&dateRange=custom&startdt={start}&enddt={today}"
+    )
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Premia/1.0 mnshpoojari@gmail.com"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        hits = data.get("hits", {}).get("hits", [])
+        items = []
+        for hit in hits:
+            src = hit.get("_source", {})
+            entity = src.get("entity_name", "Unknown")
+            file_date = src.get("file_date", "")
+            parsed_date: Optional[datetime] = None
+            if file_date:
+                try:
+                    parsed_date = datetime.strptime(file_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    pass
+            items.append({"title": f"{entity} files 8-K: merger/acquisition", "date": parsed_date})
+        log.info(f"Fetched {len(items):>3} items  ←  SEC EDGAR EFTS")
+        return items
+    except Exception as e:
+        log.warning(f"EDGAR fetch failed  ({e})")
+        return []
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def has_deal_keyword(text: str) -> bool:
@@ -292,7 +351,9 @@ def main():
     })
 
     # Tier 1 + 2: apply deal keyword filter (mixed content)
-    # Tier 3 Google News: skip deal filter — queries already guarantee deal content
+    # Tier 3 Google News + EDGAR: skip deal filter — queries/filings already target M&A
+    edgar_items = fetch_edgar_items()
+
     feed_batches: list[tuple[str, bool]] = (
         [(url, True) for url in TIER_1_FEEDS] +
         [(url, True) for url in TIER_2_FEEDS] +
@@ -317,6 +378,21 @@ def main():
                         counts[sector]["monthly"][ym] += 1
                 if item_date >= cutoff_30d:
                     counts[sector]["count_30d"] += 1
+
+    # EDGAR 8-K items — already M&A filtered, skip deal keyword check
+    for item in edgar_items:
+        sectors = classify_sectors(item["title"])
+        if not sectors:
+            continue
+        item_date = item["date"] or now
+        for sector in sectors:
+            if item_date >= cutoff_90d:
+                counts[sector]["count_90d"] += 1
+                ym = (item_date.year, item_date.month)
+                if ym in month_key_set:
+                    counts[sector]["monthly"][ym] += 1
+            if item_date >= cutoff_30d:
+                counts[sector]["count_30d"] += 1
 
     # Build results — filter noise
     results = []

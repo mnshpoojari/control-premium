@@ -173,60 +173,6 @@ function ChipRow({ items, kind, active, onSelect }: { items: Opt[]; kind: 'secto
   )
 }
 
-// ── StrengthDial ───────────────────────────────────────────────────────────────
-
-function StrengthDial({ value = 8, max = 50, accent = '#8C7E6F' }: { value?: number; max?: number; accent?: string }) {
-  const [val, setVal] = useState(value)
-  const ref = useRef<HTMLDivElement>(null)
-  const drag = useRef(false)
-
-  useEffect(() => { setVal(value) }, [value])
-
-  const setFromX = (clientX: number) => {
-    if (!ref.current) return
-    const r = ref.current.getBoundingClientRect()
-    setVal(Math.round(Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * max))
-  }
-
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => { if (drag.current) setFromX(e.clientX) }
-    const onUp = () => { drag.current = false }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
-  })
-
-  const W = 240, H = 58
-  const pct = Math.max(0, Math.min(1, val / max))
-  const cx = W / 2, cy = H + 10, r = W / 2 - 6
-  const aN = Math.PI + (0 - Math.PI) * pct
-  const nx = cx + r * Math.cos(aN), ny = cy + r * Math.sin(aN)
-
-  const ticks = Array.from({ length: 11 }).map((_, i) => {
-    const a = Math.PI + (0 - Math.PI) * (i / 10)
-    const r1 = r - 2, r2 = r - (i % 5 === 0 ? 12 : 7)
-    return { x1: cx + r1 * Math.cos(a), y1: cy + r1 * Math.sin(a), x2: cx + r2 * Math.cos(a), y2: cy + r2 * Math.sin(a), strong: i % 5 === 0 }
-  })
-
-  return (
-    <div ref={ref} onPointerDown={e => { drag.current = true; setFromX(e.clientX); e.preventDefault() }}
-      style={{ position: 'relative', width: W, height: H + 10, touchAction: 'none', userSelect: 'none', cursor: 'ew-resize' }}>
-      <svg width={W} height={H + 14} viewBox={`0 0 ${W} ${H + 14}`} style={{ display: 'block' }}>
-        <path d={`M 6 ${H + 10} A ${r} ${r} 0 0 1 ${W - 6} ${H + 10}`} fill="none" stroke="rgba(43,37,32,.12)" strokeWidth="6" strokeLinecap="round" />
-        <path d={`M 6 ${H + 10} A ${r} ${r} 0 0 1 ${nx} ${ny}`} fill="none" stroke={accent} strokeWidth="6" strokeLinecap="round" />
-        {ticks.map((t, i) => (
-          <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={t.strong ? 'rgba(43,37,32,.45)' : 'rgba(43,37,32,.22)'} strokeWidth={t.strong ? 1.4 : 1} />
-        ))}
-        <circle cx={nx} cy={ny} r={9} fill="#FAF8F3" stroke={accent} strokeWidth="2.5" />
-        <circle cx={nx} cy={ny} r={3} fill={accent} />
-      </svg>
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', font: `600 9px var(--font-mono, monospace)`, color: 'var(--ink-mute)', letterSpacing: '.04em' }}>
-        <span>QUIET</span><span>EARLY</span><span>CONSENSUS</span><span>HYPE</span>
-      </div>
-    </div>
-  )
-}
-
 // ── SignalBoard ────────────────────────────────────────────────────────────────
 
 const HERO_SECTORS = ['Healthcare', 'Fintech', 'Real Estate', 'Climatetech', 'Logistics', 'Agritech', 'B2B SaaS']
@@ -308,7 +254,7 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
         {!isMobile && (
           <button onClick={() => setShuffle(s => s + 1)} style={{
             flexShrink: 0, appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.4)',
-            padding: '8px 14px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginTop: 4,
+            padding: '8px 14px', borderRadius: 999, fontFamily: 'inherit', fontWeight: 500, fontSize: 12, color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginTop: 4,
           }}>↻ reshuffle</button>
         )}
       </div>
@@ -330,7 +276,7 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
             appearance: 'none', border: 0,
             background: ready ? 'var(--accent)' : 'rgba(43,37,32,.10)',
             color: ready ? '#1a1a1a' : 'var(--ink-mute)',
-            font: '600 14px Instrument Sans',
+            fontFamily: 'inherit', fontWeight: 600, fontSize: 14,
             padding: isMobile ? '14px 22px' : '0 22px',
             borderRadius: 12,
             minWidth: isMobile ? 'unset' : 120,
@@ -362,12 +308,12 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
       {isMobile && (
         <button onClick={() => setShuffle(s => s + 1)} style={{
           width: '100%', appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.4)',
-          padding: '8px 14px', borderRadius: 999, font: '500 12px Instrument Sans', color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginBottom: 16,
+          padding: '8px 14px', borderRadius: 999, fontFamily: 'inherit', fontWeight: 500, fontSize: 12, color: 'var(--ink-soft)', cursor: 'default', letterSpacing: '.04em', marginBottom: 16,
         }}>↻ reshuffle chips</button>
       )}
 
       {/* Verdict strip */}
-      <div style={{ padding: isMobile ? '14px 16px' : '18px 22px', borderRadius: 12, background: '#FAF8F3', border: '1px solid rgba(43,37,32,.10)', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: isMobile ? 12 : 24, alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ padding: isMobile ? '14px 16px' : '18px 22px', borderRadius: 12, background: '#FAF8F3', border: '1px solid rgba(43,37,32,.10)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 1px), rgba(43,37,32,.06) 100%)', backgroundSize: '100% 22px', position: 'absolute', inset: 0, pointerEvents: 'none' }} />
         <div style={{ position: 'relative' }}>
           {ready ? (
@@ -403,12 +349,6 @@ function SignalBoard({ onAnalyse, onPin, isMobile, preset }: {
             </div>
           )}
         </div>
-        {!isMobile && (
-          <div style={{ position: 'relative' }}>
-            <div className="mono" style={{ fontSize: 9, letterSpacing: '.14em', color: 'var(--ink-mute)', marginBottom: 6, textAlign: 'center' }}>SIGNAL STRENGTH · drag to test</div>
-            <StrengthDial value={ready ? 12 : 8} accent={ready ? '#A88B4C' : '#8C7E6F'} />
-          </div>
-        )}
       </div>
     </section>
   )

@@ -448,7 +448,7 @@ const QUALITY_DOMAINS = new Set([
   'techcrunch.com', 'crunchbase.com', 'pitchbook.com', 'peHub.com',
 ])
 
-async function getMediaMentionCount(rawQuery: string): Promise<number> {
+async function getMediaMentionCount(rawQuery: string): Promise<{ score: number; headlines: string[] }> {
   try {
     const parser = new Parser({ timeout: 5000 })
     const query = encodeURIComponent(`${rawQuery} M&A acquisition investment`)
@@ -459,6 +459,7 @@ async function getMediaMentionCount(rawQuery: string): Promise<number> {
     // Count unique sources, weighting quality domains double
     const sources = new Set<string>()
     let score = 0
+    const headlines: string[] = []
     for (const item of feed.items) {
       if (!item.link || new Date(item.pubDate ?? 0) < cutoff) continue
       const domain = extractDomain(item.link)
@@ -466,10 +467,11 @@ async function getMediaMentionCount(rawQuery: string): Promise<number> {
         sources.add(domain)
         score += QUALITY_DOMAINS.has(domain) ? 2 : 1
       }
+      if (item.title && headlines.length < 10) headlines.push(item.title)
     }
-    return score
+    return { score, headlines }
   } catch {
-    return 0
+    return { score: 0, headlines: [] }
   }
 }
 
@@ -566,39 +568,52 @@ async function generateThesis(params: {
   velocityRatio: number
   mediaCount90d: number
   synthesisItems: unknown[]
+  lowDataMode: boolean
+  newsHeadlines: string[]
 }): Promise<string> {
-  const prompt = `You are a senior capital markets analyst writing for an audience of M&A advisors and fund managers.
+  const dataContext = params.lowDataMode
+    ? `- NOTE: Confirmed deal data for this thesis is limited (${params.count90d} transactions found). The analysis below should be treated as directional.
+- Recent news headlines on this topic (use these as your primary evidence source):
+  ${params.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n  ')}`
+    : `- Recent transactions: ${JSON.stringify(params.synthesisItems)}`
 
-Write a three-paragraph analytical thesis based on the following data. Your tone is FT Lex: sharp, opinionated, evidence-anchored. Never hedge excessively. Make a call.
+  const lowDataModeInstruction = params.lowDataMode
+    ? `NOTE FOR THIS QUERY: Confirmed transaction data is limited. Base your analysis on the news headlines provided. Be explicit in the first paragraph that deal data is sparse and the analysis is based on market signals rather than confirmed transactions. Do not invent deals or figures that are not in the data provided.`
+    : ''
 
-WRITING RULES — follow these exactly:
-- No pointing back. Never write "this underscores," "this highlights," "this signals," "this reflects," or any sentence whose only job is to comment on the previous one. Say the thing directly.
-- No present participle padding. Do not end a sentence with "...highlighting the trend," "...reflecting broader caution," "...contributing to the dynamic." Each observation is its own sentence or it is cut.
-- Use "is" and "are." Do not write "serves as," "stands as," "marks," or "represents" where a simple copula works. "Deal volume is low" not "Deal volume stands as a reflection of."
-- No rule of three. Do not force ideas into groups of three. Write what is true.
-- No vague attribution. Do not write "experts argue," "observers note," or "analysts suggest." Name who, or drop the attribution.
-- No negative parallelism. Do not write "it is not just X; it is Y." Write Y.
-- Vary sentence length. Short sentences hit harder. Longer ones earn their length with specifics. Never write three sentences of identical structure in a row.
-- Banned words: "robust," "nuanced," "landscape," "ecosystem," "trajectory," "increasingly," "potentially," "differentiated," "actionable," "value creation," "capital deployment," "it remains to be seen," "pivotal," "crucial," "showcase," "foster," "testament," "vibrant," "groundbreaking," "transformative," "unlock," "tapestry," "interplay."
-- No excessive hedging. "Could potentially possibly" means nothing. If you are uncertain, say the thing and note the specific condition that would change your view.
+  const prompt = `You are writing a sector intelligence brief for Premia. Your reader might be a curious person who just heard about this sector and wants to understand what is really going on — or they might be a finance professional who lives in this space. Write for both simultaneously.
+
+The way you do this: be precise about facts, clear about what they mean, and honest about what is uncertain. Do not simplify. Do not use jargon without a one-clause explanation the first time it appears. Make the reader feel like they are being let into a conversation that usually happens behind closed doors.
+
+Tone: Matt Levine meets FT Lex. Intelligent, a little dry, completely direct. If the data suggests something counterintuitive, say it. If the narrative everyone is repeating is wrong or incomplete, say that too.
+
+Banned phrases: "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "ecosystem", "robust", "landscape", "India's growing middle class", "increasing consumer awareness", "opportunity is in differentiation, not discovery". Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — they must always be followed immediately by what that classification makes surprising or worth questioning in this specific data.
 
 Data:
-- Thesis being evaluated: ${params.userInput}
-- Sector maturity: ${params.maturity} (${params.maturityReason})
-- Signal: ${params.consensusState}
+- Thesis: ${params.userInput}
+- Consensus score: ${params.consensusState}
 - Deal count (last 30 days): ${params.count30d}
-- Velocity ratio (30d rate vs prior 60d rate): ${params.velocityRatio.toFixed(2)}x ${params.velocityRatio >= 1.5 ? '— accelerating' : params.velocityRatio < 0.7 ? '— decelerating' : '— stable'}
 - Deal count (last 90 days): ${params.count90d}
 - Media mentions (last 90 days): ${params.mediaCount90d}
-- Recent news and context: ${JSON.stringify(params.synthesisItems)}
+- Velocity ratio (deals/media): ${params.velocityRatio.toFixed(2)}x ${params.velocityRatio >= 1.5 ? '— accelerating' : params.velocityRatio < 0.7 ? '— decelerating' : '— stable'}
+- Buyer mix: Not available from current data sources
+${dataContext}
 
-Paragraph 1 (3-4 sentences): Open with one plain sentence on how mature or new this sector is in this geography — no spin, just the obvious fact (e.g. "Saudi oil is a century-old industry dominated by Aramco and sovereign capital"). Then describe what the current deal flow data shows: volume trend, acceleration or deceleration. Reference specific numbers.
+${lowDataModeInstruction}
 
-Paragraph 2 (3-4 sentences): What is driving this pattern? Draw on likely buyer types, macro tailwinds, sector dynamics, or geographic factors that explain the deal clustering.
+Write exactly four paragraphs. No headers. No bullets. No preamble. No sign-off.
 
-Paragraph 3 (2-3 sentences): What should a deal professional do with this information? Be direct. Do not be vague.
+PARAGRAPH 1 — WHAT THE MONEY IS DOING (3 sentences):
+Describe what is actually happening in this sector right now, using the transaction data as evidence. Name companies. State amounts. Write the way a sharp journalist would open a story — with the most interesting fact, not the most obvious one. If the consensus score indicates an established or mature market, name that — but in the same breath, name what in the data sits oddly against that classification. A mature market with active early-stage raises is not behaving like a mature market everywhere.
 
-Return only the three paragraphs. No headers, no bullet points, no preamble.`
+PARAGRAPH 2 — THE THING WORTH NOTICING (3-4 sentences):
+Is there a tension, a contradiction, or a pattern in this data that most people would miss? Two deals that seem to represent opposite theories about where this sector is going. A gap between how much money is moving and how little is being written about it — or vice versa. If the data is clean and consistent, explain why that itself is significant. This paragraph should make both the layman and the finance professional pause.
+
+PARAGRAPH 3 — WHAT IT ACTUALLY MEANS (3 sentences):
+What do these transactions collectively reveal about what the people writing the cheques actually believe about this sector's future? Not what the press release says — what the pattern says. This is the paragraph where you say something true that most coverage won't.
+
+PARAGRAPH 4 — WHY THIS MATTERS BEYOND THE DEAL (2 sentences):
+One observation that extends beyond the transaction itself — for the sector, for consumers, for anyone paying attention. Do not tell the reader what to do with this information. State what is true and let them decide. This is the sentence someone forwards to a friend.`
 
   try {
     const result = await gemini.generateContent(prompt)
@@ -667,11 +682,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Steps 1b + 2 + 3 in parallel
-    const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, mediaCount90d] = await Promise.all([
+    const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, { score: mediaCount90d, headlines: newsHeadlines }] = await Promise.all([
       classifyMaturity(thesis, sector, geography),
       getDealData(geography, raw_query),
       getMediaMentionCount(raw_query),
     ])
+
+    const lowDataMode = count90d < 3
 
     // Step 4
     const consensus = calculateConsensusScore(count90d, count30d, mediaCount90d, maturityResult.maturity)
@@ -689,12 +706,15 @@ export async function POST(req: NextRequest) {
       velocityRatio,
       mediaCount90d,
       synthesisItems,
+      lowDataMode,
+      newsHeadlines,
     })
 
     const confidence: 'high' | 'medium' | 'low' =
       count90d >= 20 ? 'high' : count90d >= 7 ? 'medium' : 'low'
 
     return NextResponse.json({
+      low_data_mode: lowDataMode,
       consensus,
       chart_data: chartData,
       stats: {

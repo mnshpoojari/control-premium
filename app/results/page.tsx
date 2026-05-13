@@ -15,6 +15,7 @@ function useIsMobile(breakpoint = 700) {
 }
 
 interface AnalyseResult {
+  low_data_mode: boolean
   consensus: { state: string; colour: string; explanation: string }
   chart_data: { month: string; deal_count: number }[]
   stats: {
@@ -435,6 +436,15 @@ function ResultsContent() {
               </div>
             ) : (
               <SkeletonChart isMobile={isMobile} />
+            )}
+
+            {/* LOW DATA BANNER */}
+            {revealed.narrative && data?.low_data_mode && (
+              <div className="fade-up">
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Limited deal data for this thesis. The analysis below is based on market signals rather than confirmed transactions — treat it as directional, not definitive.
+                </div>
+              </div>
             )}
 
             {/* NARRATIVE */}
