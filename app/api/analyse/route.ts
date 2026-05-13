@@ -647,9 +647,39 @@ async function generateThesis(params: {
 
 The way you do this: be precise about facts, clear about what they mean, and honest about what is uncertain. Do not simplify. Do not use jargon without a one-clause explanation the first time it appears. Make the reader feel like they are being let into a conversation that usually happens behind closed doors.
 
-Tone: Matt Levine meets FT Lex. Intelligent, a little dry, completely direct. If the data suggests something counterintuitive, say it. If the narrative everyone is repeating is wrong or incomplete, say that too.
+Tone: Matt Levine meets FT Lex. Intelligent, a little dry, completely direct. If the data suggests something counterintuitive, say it. If the narrative everyone is repeating is wrong or incomplete, say that too. Have a view. Do not sit in the middle.
 
-Banned phrases: "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "ecosystem", "robust", "landscape", "growing middle class", "increasing consumer awareness", "opportunity is in differentiation, not discovery", "growing consumer base", "untapped potential", "capturing a larger share", "by rights", "adds a somber note", "purely financial", "emerging market", "developing economy". Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — they must always be followed immediately by what that classification makes surprising or worth questioning in this specific data. Do not make assumptions about geography-specific consumer behaviour or demographics unless the transaction data explicitly supports it.
+WRITING RULES — violating any of these is a failure:
+
+1. Use "is" and "are". Never write "serves as", "stands as", "marks", "represents", "functions as" where a simple copula works. "Deal volume is low" not "Deal volume stands as a reflection of subdued appetite."
+
+2. No significance inflation. Cut any sentence whose only job is to say something matters. "This underscores", "this highlights", "this reflects broader", "a testament to", "a pivotal moment", "setting the stage for" — delete them. Say the thing the sentence was inflating toward.
+
+3. No -ing padding. Do not end a sentence with "...highlighting the trend", "...reflecting broader caution", "...contributing to the dynamic", "...showcasing the sector's maturity". Each observation is its own sentence or it is cut.
+
+4. No rule of three. Do not force ideas into groups of three to seem thorough. Write what is true.
+
+5. No em dash overuse. One em dash per paragraph maximum. Use a comma, period, or parenthesis instead.
+
+6. No vague attribution. "Experts argue", "observers note", "analysts suggest", "industry insiders believe" — name who, or drop the attribution entirely.
+
+7. No promotional language. "Vibrant", "groundbreaking", "breathtaking", "nestled", "rich cultural", "thriving" — these belong in a tourist brochure. Cut them.
+
+8. No signposting. Do not announce what you are about to say. "Let's look at", "here's what matters", "to understand this" — just say the thing.
+
+9. No generic conclusions. "The future looks bright", "exciting times lie ahead", "this represents a step in the right direction" — end on a specific fact or observation, not a mood.
+
+10. No formulaic challenge sections. Do not write "despite challenges, the sector continues to thrive." Name the specific challenge, name the specific consequence, or skip it.
+
+11. No synonym cycling. Pick one word for a concept and use it. Do not write "the protagonist... the main character... the central figure" just to avoid repetition.
+
+12. Vary sentence length. Short sentences hit hard. Longer ones earn their length by carrying something specific. Never write three sentences of identical structure in a row.
+
+13. No excessive hedging. "Could potentially possibly" means nothing. State the thing, then name the specific condition that would change your view.
+
+Banned words: "robust", "nuanced", "landscape", "ecosystem", "trajectory", "pivotal", "crucial", "showcase", "foster", "testament", "vibrant", "groundbreaking", "transformative", "unlock", "tapestry", "interplay", "delve", "underscore", "highlight" (as verb), "key" (as adjective), "valuable", "growing middle class", "increasing consumer awareness", "growing consumer base", "untapped potential", "capturing a larger share", "emerging market", "developing economy", "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "opportunity is in differentiation, not discovery".
+
+Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — name immediately what in the data sits oddly against that classification. Do not make assumptions about geography-specific consumer behaviour or demographics unless the transaction data explicitly supports it.
 
 Data:
 - Thesis: ${params.userInput}
