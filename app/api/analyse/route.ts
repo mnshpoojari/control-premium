@@ -231,7 +231,7 @@ function isTopicRelevant(title: string, rawQuery: string): boolean {
   const terms = rawQuery.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/)
     .filter(w => w.length > 3 && !GEO_STOP_TERMS.has(w))
   if (terms.length === 0) return true
-  return terms.some(term => t.includes(term))
+  return terms.every(term => t.includes(term))
 }
 
 const GEO_ALIASES: Record<string, string[]> = {
