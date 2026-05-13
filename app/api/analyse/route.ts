@@ -643,57 +643,25 @@ async function generateThesis(params: {
     ? `NOTE FOR THIS QUERY: Confirmed transaction data is limited. Base your analysis on the news headlines provided. Be explicit in the first paragraph that deal data is sparse and the analysis is based on market signals rather than confirmed transactions. Do not invent deals or figures that are not in the data provided.`
     : ''
 
-  const prompt = `You are writing a sector intelligence brief for Premia. Your reader might be a curious person who just heard about this sector and wants to understand what is really going on — or they might be a finance professional who lives in this space. Write for both simultaneously.
+  const prompt = `You are a senior capital markets analyst writing for an audience that ranges from curious first-time investors to seasoned M&A professionals. Write for both simultaneously — precise enough for the expert, clear enough for the newcomer.
 
-The way you do this: be precise about facts, clear about what they mean, and honest about what is uncertain. Do not simplify. Do not use jargon without a one-clause explanation the first time it appears. Make the reader feel like they are being let into a conversation that usually happens behind closed doors.
+Your tone is FT Lex: sharp, opinionated, evidence-anchored. Never hedge. Make a call. Do not use jargon without a one-clause explanation the first time it appears.
 
-Tone: Matt Levine meets FT Lex. Intelligent, a little dry, completely direct. If the data suggests something counterintuitive, say it. If the narrative everyone is repeating is wrong or incomplete, say that too. Have a view. Do not sit in the middle.
-
-WRITING RULES — violating any of these is a failure:
-
-1. Use "is" and "are". Never write "serves as", "stands as", "marks", "represents", "functions as" where a simple copula works. "Deal volume is low" not "Deal volume stands as a reflection of subdued appetite."
-
-2. No significance inflation. Cut any sentence whose only job is to say something matters. "This underscores", "this highlights", "this reflects broader", "a testament to", "a pivotal moment", "setting the stage for" — delete them. Say the thing the sentence was inflating toward.
-
-3. No -ing padding. Do not end a sentence with "...highlighting the trend", "...reflecting broader caution", "...contributing to the dynamic", "...showcasing the sector's maturity". Each observation is its own sentence or it is cut.
-
-4. No rule of three. Do not force ideas into groups of three to seem thorough. Write what is true.
-
-5. No em dash overuse. One em dash per paragraph maximum. Use a comma, period, or parenthesis instead.
-
-6. No vague attribution. "Experts argue", "observers note", "analysts suggest", "industry insiders believe" — name who, or drop the attribution entirely.
-
-7. No promotional language. "Vibrant", "groundbreaking", "breathtaking", "nestled", "rich cultural", "thriving" — these belong in a tourist brochure. Cut them.
-
-8. No signposting. Do not announce what you are about to say. "Let's look at", "here's what matters", "to understand this" — just say the thing.
-
-9. No generic conclusions. "The future looks bright", "exciting times lie ahead", "this represents a step in the right direction" — end on a specific fact or observation, not a mood.
-
-10. No formulaic challenge sections. Do not write "despite challenges, the sector continues to thrive." Name the specific challenge, name the specific consequence, or skip it.
-
-11. No synonym cycling. Pick one word for a concept and use it. Do not write "the protagonist... the main character... the central figure" just to avoid repetition.
-
-12. Vary sentence length. Short sentences hit hard. Longer ones earn their length by carrying something specific. Never write three sentences of identical structure in a row.
-
-13. No excessive hedging. "Could potentially possibly" means nothing. State the thing, then name the specific condition that would change your view.
-
-Banned words: "robust", "nuanced", "landscape", "ecosystem", "trajectory", "pivotal", "crucial", "showcase", "foster", "testament", "vibrant", "groundbreaking", "transformative", "unlock", "tapestry", "interplay", "delve", "underscore", "highlight" (as verb), "key" (as adjective), "valuable", "growing middle class", "increasing consumer awareness", "growing consumer base", "untapped potential", "capturing a larger share", "emerging market", "developing economy", "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "opportunity is in differentiation, not discovery".
-
-Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — name immediately what in the data sits oddly against that classification. Do not make assumptions about geography-specific consumer behaviour or demographics unless the transaction data explicitly supports it.
+Banned phrases: "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "ecosystem", "robust", "landscape", "growing middle class", "untapped potential", "transformative potential", "long-term utility", "technological advancement", "operational efficiency", "wave of innovation", "opportunity is in differentiation, not discovery". Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — always follow them immediately with what that classification makes surprising or worth questioning in this specific data.
 
 Data:
-- Thesis: ${params.userInput}
+- Thesis being evaluated: ${params.userInput}
 - Consensus score: ${params.consensusState}
 - Deal count (last 30 days): ${params.count30d}
 - Deal count (last 90 days): ${params.count90d}
 - Media mentions (last 90 days): ${params.mediaCount90d}
 - Velocity ratio (deals/media): ${params.velocityRatio.toFixed(2)}x ${params.velocityRatio >= 1.5 ? '— accelerating' : params.velocityRatio < 0.7 ? '— decelerating' : '— stable'}
-  Interpretation guide:
-  - Above 2.0x: deal activity significantly outpacing coverage — potential early signal, name it as such
-  - 1.0x–2.0x: deal and media activity broadly in step — the narrative matches the capital flow
-  - Below 1.0x: media coverage outpacing deals — narrative may be ahead of reality
-  - 0.0x–0.3x with deal count above 3: significant activity happening almost entirely below public radar — this is the most interesting quadrant, treat it as the lead of your analysis, not a footnote
-  - 0.0x with deal count below 3: insufficient data, flag this explicitly in paragraph one rather than building confident analysis on thin signal
+  Interpretation:
+  - Above 2.0x: deals significantly outpacing coverage — early signal, name it as such
+  - 1.0x–2.0x: deal and media activity broadly in step
+  - Below 1.0x: narrative ahead of real capital deployment
+  - 0.0x–0.3x with deal count above 3: significant activity below public radar — treat this as your lead, not a footnote
+  - 0.0x with deal count below 3: thin data, say so explicitly
 - Buyer mix: Not available from current data sources
 ${dataContext}
 
@@ -701,17 +669,19 @@ ${lowDataModeInstruction}
 
 Write exactly four paragraphs. No headers. No bullets. No preamble. No sign-off.
 
-PARAGRAPH 1 — WHAT THE MONEY IS DOING (3 sentences):
-Describe what is actually happening in this sector right now, using the transaction data as evidence. Name companies. State amounts. Write the way a sharp journalist would open a story — with the most interesting fact, not the most obvious one. If the consensus score indicates an established or mature market, name that — but in the same breath, name what in the data sits oddly against that classification. A mature market with active early-stage raises is not behaving like a mature market everywhere.
+Paragraph 1 — Observation (3-4 sentences):
+What does the data show? Describe the volume trend and whether activity is accelerating or decelerating. Reference specific numbers. Set the macro context for this sector and geography. What are the broader forces — regulatory, economic, consumer, or structural — that explain why capital is paying attention to this space right now? Ground this in the deal count and velocity data. This paragraph should make a reader who knows nothing about the sector understand why it matters at this moment.
 
-PARAGRAPH 2 — THE THING WORTH NOTICING (3-4 sentences):
-Is there a tension, a contradiction, or a pattern in this data that most people would miss? Two deals that seem to represent opposite theories about where this sector is going. A gap between how much money is moving and how little is being written about it — or vice versa. If the data is clean and consistent, explain why that itself is significant. This paragraph should make both the layman and the finance professional pause.
+Paragraph 2 — Contradiction (3-4 sentences):
+Now zoom into the data. What two things in this data cannot both be true at the same time? Look for: a large strategic acquisition alongside early-stage venture bets; deal velocity accelerating while the consensus score suggests the narrative is already formed; small tickets clustering alongside one outlier large deal; multiple buyer types active simultaneously with incompatible return horizons. Name specific companies and amounts where they sharpen the contradiction. If no real tension exists, say so directly and explain why the consistency itself is the signal.
 
-PARAGRAPH 3 — WHAT IT ACTUALLY MEANS (3 sentences):
-What do these transactions collectively reveal about what the people writing the cheques actually believe about this sector's future? Not what the press release says — what the pattern says. This is the paragraph where you say something true that most coverage won't.
+Paragraph 3 — Why markets may be misreading this (3 sentences):
+What assumption does the consensus narrative make that this data challenges? What does the deal pattern reveal about where capital is actually moving versus where the public story says it is going? This is the paragraph where you say the thing most coverage won't.
 
-PARAGRAPH 4 — WHY THIS MATTERS BEYOND THE DEAL (2 sentences):
-One observation that extends beyond the transaction itself — for the sector, for consumers, for anyone paying attention. Do not tell the reader what to do with this information. State what is true and let them decide. This is the sentence someone forwards to a friend.`
+Paragraph 4 — Conclusion (2 sentences):
+One concrete observation that follows from the data — not a recommendation, not a prediction. State what is true and let the reader decide what to do with it. Anchor it in the data, not in speculation about the future. This is the sentence someone forwards to a friend.
+
+Return only the four paragraphs. No headers, no bullet points, no preamble.`
 
   try {
     const result = await gemini.generateContent(prompt)
