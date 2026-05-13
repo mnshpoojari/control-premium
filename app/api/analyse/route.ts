@@ -448,7 +448,60 @@ const QUALITY_DOMAINS = new Set([
   'techcrunch.com', 'crunchbase.com', 'pitchbook.com', 'peHub.com',
 ])
 
-async function getMediaMentionCount(rawQuery: string): Promise<{ score: number; headlines: string[] }> {
+const HEADLINE_KEYWORDS_GLOBAL = [
+  // Deal activity
+  'acquires', 'acquisition', 'raises', 'funding',
+  'investment', 'stake', 'merger', 'buyout', 'expands',
+  'expansion', 'joint venture', 'capital', 'ipo',
+  'valuation', 'series', 'round', 'deal', 'backed',
+  'launches', 'enters', 'market entry', 'partnership',
+  'invested', 'closed', 'transaction', 'buys', 'sells',
+  'sale', 'purchase', 'offer', 'bid', 'agreed',
+  // Corporate structure
+  'spins off', 'spin-off', 'divests', 'divestiture',
+  'carve-out', 'demerger', 'restructures', 'consolidates',
+  'takeover', 'acqui-hire', 'strategic review',
+  'goes private', 'take private', 'management buyout',
+  'leveraged buyout', 'recapitalisation',
+  // Finance language — global
+  'private equity', 'venture capital', 'angel',
+  'seed round', 'pre-ipo', 'growth equity',
+  'sovereign wealth', 'family office', 'hedge fund',
+  'asset management', 'fund raises', 'fund closes',
+  'listed', 'delisted', 'stock exchange',
+  'public offering', 'secondary offering',
+  // Growth signals
+  'franchises', 'licences', 'scales', 'new facility',
+  'plant', 'factory', 'manufacturing unit',
+  'distribution agreement', 'supply agreement',
+  'capacity expansion', 'greenfield', 'brownfield',
+  // Distress signals
+  'insolvency', 'liquidation', 'administration',
+  'debt restructuring', 'defaults', 'write-off',
+  'resolution', 'stressed asset', 'receivership',
+  'bankruptcy', 'chapter 11', 'creditor',
+  // Market entry — global
+  'enters market', 'market entry', 'sets up',
+  'establishes', 'opens operations', 'expands into',
+  'launches in', 'debut',
+  // Regulatory and institutional — global
+  'antitrust', 'regulatory approval', 'clearance',
+  'government backed', 'state owned', 'sovereign',
+  'competition authority', 'approved by',
+]
+
+const HEADLINE_KEYWORDS_INDIA = [
+  'crore', 'lakh', 'sebi', 'nse', 'bse',
+  'qip', 'ncd', 'rights issue', 'promoter stake',
+  'nclt', 'dpiit', 'cci', 'pli scheme',
+  'fdi approval',
+]
+
+async function getMediaMentionCount(rawQuery: string, geography: string): Promise<{ score: number; headlines: string[] }> {
+  const HEADLINE_KEYWORDS = geography === 'India'
+    ? [...HEADLINE_KEYWORDS_GLOBAL, ...HEADLINE_KEYWORDS_INDIA]
+    : HEADLINE_KEYWORDS_GLOBAL
+
   try {
     const parser = new Parser({ timeout: 5000 })
     const query = encodeURIComponent(`${rawQuery} M&A acquisition investment`)
@@ -459,7 +512,6 @@ async function getMediaMentionCount(rawQuery: string): Promise<{ score: number; 
     // Count unique sources, weighting quality domains double
     const sources = new Set<string>()
     let score = 0
-    const headlines: string[] = []
     for (const item of feed.items) {
       if (!item.link || new Date(item.pubDate ?? 0) < cutoff) continue
       const domain = extractDomain(item.link)
@@ -467,8 +519,18 @@ async function getMediaMentionCount(rawQuery: string): Promise<{ score: number; 
         sources.add(domain)
         score += QUALITY_DOMAINS.has(domain) ? 2 : 1
       }
-      if (item.title && headlines.length < 10) headlines.push(item.title)
     }
+
+    // Collect up to 10 financially-relevant headlines, fully case-insensitive
+    const headlines = feed.items
+      .filter(item => {
+        const text = ((item.title ?? '') + ' ' + (item.contentSnippet ?? '')).toLowerCase()
+        return HEADLINE_KEYWORDS.some(k => text.includes(k.toLowerCase()))
+      })
+      .slice(0, 10)
+      .map(item => item.title ?? '')
+      .filter(Boolean)
+
     return { score, headlines }
   } catch {
     return { score: 0, headlines: [] }
@@ -587,7 +649,7 @@ The way you do this: be precise about facts, clear about what they mean, and hon
 
 Tone: Matt Levine meets FT Lex. Intelligent, a little dry, completely direct. If the data suggests something counterintuitive, say it. If the narrative everyone is repeating is wrong or incomplete, say that too.
 
-Banned phrases: "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "ecosystem", "robust", "landscape", "India's growing middle class", "increasing consumer awareness", "opportunity is in differentiation, not discovery". Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — they must always be followed immediately by what that classification makes surprising or worth questioning in this specific data.
+Banned phrases: "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "ecosystem", "robust", "landscape", "growing middle class", "increasing consumer awareness", "opportunity is in differentiation, not discovery", "growing consumer base", "untapped potential", "capturing a larger share", "by rights", "adds a somber note", "purely financial", "emerging market", "developing economy". Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — they must always be followed immediately by what that classification makes surprising or worth questioning in this specific data. Do not make assumptions about geography-specific consumer behaviour or demographics unless the transaction data explicitly supports it.
 
 Data:
 - Thesis: ${params.userInput}
@@ -596,6 +658,12 @@ Data:
 - Deal count (last 90 days): ${params.count90d}
 - Media mentions (last 90 days): ${params.mediaCount90d}
 - Velocity ratio (deals/media): ${params.velocityRatio.toFixed(2)}x ${params.velocityRatio >= 1.5 ? '— accelerating' : params.velocityRatio < 0.7 ? '— decelerating' : '— stable'}
+  Interpretation guide:
+  - Above 2.0x: deal activity significantly outpacing coverage — potential early signal, name it as such
+  - 1.0x–2.0x: deal and media activity broadly in step — the narrative matches the capital flow
+  - Below 1.0x: media coverage outpacing deals — narrative may be ahead of reality
+  - 0.0x–0.3x with deal count above 3: significant activity happening almost entirely below public radar — this is the most interesting quadrant, treat it as the lead of your analysis, not a footnote
+  - 0.0x with deal count below 3: insufficient data, flag this explicitly in paragraph one rather than building confident analysis on thin signal
 - Buyer mix: Not available from current data sources
 ${dataContext}
 
@@ -685,7 +753,7 @@ export async function POST(req: NextRequest) {
     const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, { score: mediaCount90d, headlines: newsHeadlines }] = await Promise.all([
       classifyMaturity(thesis, sector, geography),
       getDealData(geography, raw_query),
-      getMediaMentionCount(raw_query),
+      getMediaMentionCount(raw_query, geography),
     ])
 
     const lowDataMode = count90d < 3
