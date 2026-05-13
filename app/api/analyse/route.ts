@@ -683,48 +683,70 @@ One concrete observation that follows from the data — not a recommendation, no
 
 Return only the four paragraphs. No headers, no bullet points, no preamble.`
 
+  let rawResponseText = ''
   try {
     const result = await gemini.generateContent(prompt)
-    const text = result.response.text().trim()
-    if (text.length > 100) return text
-    throw new Error('Response too short')
+    rawResponseText = result.response.text().trim()
+    if (rawResponseText.length > 100) return rawResponseText
+    throw new Error(`Response too short (${rawResponseText.length} chars): "${rawResponseText.slice(0, 120)}"`)
   } catch (err) {
-    console.error('Gemini thesis error:', err)
-    // Rich data-driven fallback
-    const trend = params.velocityRatio >= 1.5
-      ? `accelerating sharply (${params.velocityRatio.toFixed(1)}× the prior rate)`
+    console.error('Gemini thesis error:', err instanceof Error ? err.message : err)
+    if (rawResponseText) console.error('Gemini raw response was:', rawResponseText.slice(0, 300))
+
+    // Fallback — four paragraphs matching the prompt's structure, no banned words
+    const velocityDesc = params.velocityRatio >= 2
+      ? `${params.velocityRatio.toFixed(1)}× — deal activity is significantly outpacing media coverage, an early signal worth naming`
+      : params.velocityRatio >= 1
+        ? `${params.velocityRatio.toFixed(1)}× — capital flow and coverage are broadly in step`
+        : params.count90d >= 3
+          ? `${params.velocityRatio.toFixed(1)}× — media coverage is running ahead of confirmed transactions`
+          : `insufficient confirmed transactions to draw a reliable ratio`
+
+    const trendDesc = params.velocityRatio >= 1.5
+      ? `accelerating: the 30-day rate (${params.count30d} items) is ${params.velocityRatio.toFixed(1)}× the prior two-month pace`
       : params.count30d === 0
-        ? 'effectively stalled, with no recorded items in the last 30 days'
+        ? `stalled — no items recorded in the last 30 days despite ${params.count90d} in the prior 60`
         : params.velocityRatio < 0.7
-          ? 'decelerating — the pace has dropped relative to the prior two months'
-          : 'running at a broadly consistent pace across the quarter'
-    const mediaVsDeals = params.mediaCount90d > params.count90d * 1.5
-      ? 'Media coverage is running well ahead of transaction volume, suggesting narrative interest has outpaced actual capital deployment.'
-      : params.count90d > params.mediaCount90d * 1.5
-        ? 'Transaction activity is outpacing media coverage — this theme is moving faster than the press is reporting it.'
-        : 'Transaction activity and media coverage are broadly in step, indicating the theme is well-tracked by market participants.'
+          ? `decelerating — the 30-day rate is below the prior two-month average`
+          : `steady — ${params.count30d} items in the last 30 days, consistent with the prior run rate`
 
-    const maturityFrame = {
-      MATURE: `This is an established market with deep historical precedent — the current data reflects a sector in steady state, not one being discovered.`,
-      EMERGING: `This market is still building its deal ecosystem — the current numbers reflect a theme that is gaining traction rather than one already at scale.`,
-      NASCENT: `This is an early-stage theme with limited transaction history — the data should be read as directional signal rather than established trend.`,
+    const maturityDesc = {
+      MATURE:   `This is an established deal category in this geography.`,
+      EMERGING: `This sector is active but not yet consolidated in this geography.`,
+      NASCENT:  `Confirmed transaction history here is thin.`,
     }[params.maturity]
 
-    const recentTitles = (params.synthesisItems as { title: string }[]).slice(0, 2).map(i => i.title)
-    const evidenceLine = recentTitles.length > 0
-      ? `Recent coverage includes: ${recentTitles.join('; ')}.`
-      : 'No named transactions were surfaced in the most recent news scan.'
+    const gapDesc = params.count90d > params.mediaCount90d * 1.5
+      ? `Deal count (${params.count90d}) is running ahead of tracked media mentions (${params.mediaCount90d}) — capital is moving faster than the press is covering it.`
+      : params.mediaCount90d > params.count90d * 1.5
+        ? `Media mentions (${params.mediaCount90d}) are running well ahead of confirmed transactions (${params.count90d}) — narrative interest has not yet translated into deal flow.`
+        : `Deal count (${params.count90d}) and media mentions (${params.mediaCount90d}) are broadly in step — the thesis is as well-tracked as it is active.`
 
-    const actionFrame = {
-      MATURE: `In a mature market, the edge is in relationships and process — not in spotting the theme. Track whether deal velocity is accelerating relative to historical norms, and focus diligence on asset quality and pricing discipline.`,
-      EMERGING: `The window to position ahead of consensus is narrowing. Prioritise sourcing over the next one to two quarters and track whether deal count continues to outpace media coverage — that gap is where alpha lives.`,
-      NASCENT: `Move cautiously but deliberately. Identify the two or three most credible operators in this space and build relationships before the theme becomes crowded. Expect a long lead time before liquidity events.`,
-    }[params.maturity]
+    const signalDesc = {
+      'EARLY SIGNAL': `The EARLY SIGNAL score means deal activity is outpacing coverage — this thesis has not yet entered the mainstream narrative.`,
+      'CONSENSUS':    `The CONSENSUS score means this thesis is broadly known — most participants already see it, and pricing will reflect that.`,
+      'HYPE':         `The HYPE score means coverage is running ahead of capital — the narrative is ahead of the transactions.`,
+      'QUIET':        `The QUIET score means neither deal flow nor coverage is significant — this is either very early or not yet a real theme.`,
+      'ACTIVE':       `The ACTIVE score means deal flow is healthy for a mature category — competition for assets is real.`,
+      'ESTABLISHED':  `The ESTABLISHED score means this is a known, priced market — the edge comes from execution, not discovery.`,
+      'NARRATIVE':    `The NARRATIVE score means commentary is outpacing transactions in a mature category — stories are getting ahead of deals.`,
+      'COOLING':      `The COOLING score means activity is slowing — the theme had its run; the question is whether this is a pause or a peak.`,
+    }[params.consensusState] ?? `The ${params.consensusState} signal reflects current deal and media activity levels.`
+
+    // Only use English-looking titles in the fallback to avoid Korean/local-script bleed
+    const englishTitles = (params.synthesisItems as { title: string }[])
+      .filter(i => /^[\x20-\x7E‘-”–—]+$/.test(i.title))
+      .slice(0, 2)
+      .map(i => i.title)
+    const evidenceLine = englishTitles.length > 0
+      ? `Recent coverage: ${englishTitles.join('; ')}.`
+      : ''
 
     return [
-      `${maturityFrame} Deal activity over the last 90 days stands at ${params.count90d} recorded items, with ${params.count30d} in the most recent 30 days — momentum is ${trend}.`,
-      `${mediaVsDeals} ${evidenceLine} The ${params.consensusState} signal reflects where this thesis sits relative to the broader market's awareness.`,
-      actionFrame,
+      `${maturityDesc} ${params.count90d} deal-related items were tracked in the last 90 days, with ${params.count30d} in the most recent 30. Momentum is ${trendDesc}. Velocity ratio: ${velocityDesc}.`,
+      `${gapDesc}${evidenceLine ? ' ' + evidenceLine : ''}`,
+      `${signalDesc} The gap between deal count and media attention is the most informative number here — it is where the market is either ahead of the story or behind it.`,
+      `${params.count90d} tracked items over 90 days${params.count30d > 0 ? `, with ${params.count30d} in the last month` : ', with none in the last 30 days'}, in a ${params.maturity.toLowerCase()}-stage category against a ${params.consensusState} signal.`,
     ].join('\n\n')
   }
 }
