@@ -4,6 +4,21 @@ import Parser from 'rss-parser'
 
 const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const gemini = genai.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+const geminiFallback = genai.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+async function generateContent(prompt: string): Promise<string> {
+  try {
+    const result = await gemini.generateContent(prompt)
+    return result.response.text()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+      const result = await geminiFallback.generateContent(prompt)
+      return result.response.text()
+    }
+    throw err
+  }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -43,8 +58,7 @@ Thesis: "${thesis}"
   "raw_query": "2-4 words for Google News search — use the sector/product terms only, never investment strategy words like 'roll-ups', 'consolidation', 'vertical integration', 'buyout strategy'. e.g. for 'Healthcare IT roll-ups in the US' → 'healthcare IT'; for 'femtech in the UK' → 'femtech UK'; for 'B2B SaaS Germany' → 'B2B SaaS Germany'"
 }`
 
-  const result = await gemini.generateContent(prompt)
-  return extractJSON(result.response.text()) as {
+  return extractJSON(await generateContent(prompt)) as {
     sector: string
     sub_sector: string
     geography: string
@@ -104,8 +118,7 @@ Guidelines:
 When the sector is well-established globally (SaaS, Fintech, Healthcare IT, Logistics, Financial Services) and the geography is a developed market (US, UK, Germany, France, Australia, Japan), classify as MATURE unless there is a specific reason it is underdeveloped there.`
 
   try {
-    const result = await gemini.generateContent(prompt)
-    const parsed = extractJSON(result.response.text()) as { maturity: Maturity; reason: string }
+    const parsed = extractJSON(await generateContent(prompt)) as { maturity: Maturity; reason: string }
     if (['MATURE', 'EMERGING', 'NASCENT'].includes(parsed.maturity)) return parsed
     return { maturity: 'EMERGING', reason: 'Could not classify' }
   } catch {
@@ -294,8 +307,7 @@ async function translateTitles(items: NewsItem[]): Promise<void> {
 Headlines: ${JSON.stringify(titles)}`
 
   try {
-    const result = await gemini.generateContent(prompt)
-    const raw = result.response.text().trim()
+    const raw = (await generateContent(prompt)).trim()
     const cleaned = raw.includes('```') ? raw.split('```')[1].replace(/^json\s*/, '').trim() : raw
     const translated = JSON.parse(cleaned) as string[]
     if (Array.isArray(translated) && translated.length === localItems.length) {
@@ -685,8 +697,7 @@ Return only the four paragraphs. No headers, no bullet points, no preamble.`
 
   let rawResponseText = ''
   try {
-    const result = await gemini.generateContent(prompt)
-    rawResponseText = result.response.text().trim()
+    rawResponseText = (await generateContent(prompt)).trim()
     if (rawResponseText.length > 100) return rawResponseText
     throw new Error(`Response too short (${rawResponseText.length} chars): "${rawResponseText.slice(0, 120)}"`)
   } catch (err) {
