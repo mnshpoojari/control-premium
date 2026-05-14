@@ -345,7 +345,7 @@ function ResultsContent() {
             </p>
           ) : data ? (
             <p className="fade-up" style={{ margin: 0, fontSize: 14, color: 'var(--ink-mute)' }}>
-              Based on {data.stats.count_90d} items tracked · {data.stats.media_sources} sources · 90 days
+              Based on {data.stats.count_90d} items tracked · {data.stats.media_sources} {data.stats.media_sources === 1 ? 'source' : 'sources'} · 90 days
             </p>
           ) : null}
         </div>
@@ -426,15 +426,22 @@ function ResultsContent() {
                     <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 6 }}>SIGNAL COVERAGE</div>
                     <div className="serif" style={{ fontSize: 22, color: confColor, lineHeight: 1, marginBottom: 6 }}>{confLabel}</div>
                     <p style={{ fontSize: 12, color: 'var(--ink-mute)', lineHeight: 1.5, marginBottom: 14 }}>{confSub}</p>
-                    {confBars.map(({ label, pct: barPct }) => (
-                      <div key={label} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 36px', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px dashed rgba(43,37,32,.14)' }}>
-                        <span style={{ font: '500 12px Instrument Sans', color: 'var(--ink-soft)' }}>{label}</span>
-                        <div style={{ height: 7, background: 'rgba(43,37,32,.06)', borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
-                          <div style={{ position: 'absolute', inset: 0, width: `${barPct}%`, background: `linear-gradient(90deg, ${confColor}55, ${confColor}cc)`, borderRadius: 4, transition: 'width .5s cubic-bezier(.2,.9,.2,1.1)' }} />
+                    {confBars.map(({ label, pct: barPct }) => {
+                      const barColor = barPct >= 65 ? '#7CB518' : barPct >= 40 ? '#A88B4C' : '#B83A26'
+                      return (
+                        <div key={label} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 36px', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px dashed rgba(43,37,32,.14)' }}>
+                          <span style={{ font: '500 12px Instrument Sans', color: 'var(--ink-soft)' }}>{label}</span>
+                          <div style={{ height: 7, background: 'rgba(43,37,32,.06)', borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${barPct}%`, background: `linear-gradient(90deg, ${barColor}55, ${barColor}cc)`, borderRadius: 4, transition: 'width .5s cubic-bezier(.2,.9,.2,1.1)' }} />
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, left: '65%', width: 1, background: 'rgba(43,37,32,.2)' }} />
+                          </div>
+                          <span className="mono" style={{ textAlign: 'right', fontSize: 11, color: barColor }}>{barPct}%</span>
                         </div>
-                        <span className="mono" style={{ textAlign: 'right', fontSize: 11, color: 'var(--ink-soft)' }}>{barPct}%</span>
-                      </div>
-                    ))}
+                      )
+                    })}
+                    <p style={{ margin: '8px 0 0', fontSize: 10, color: 'var(--ink-mute)', lineHeight: 1.5 }}>
+                      Vertical line at 65% marks a typical well-documented thesis.
+                    </p>
                   </div>
                 </section>
               </div>

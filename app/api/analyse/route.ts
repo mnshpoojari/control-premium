@@ -331,8 +331,7 @@ function isDealArticle(title: string, geography?: string, rawQuery?: string, isL
   if (NOISE_PATTERNS.some(p => t.includes(p))) return false
   if (!DEAL_KEYWORDS.some(kw => t.includes(kw))) return false
   if (rawQuery && !isTopicRelevant(title, rawQuery)) return false
-  // Local items are already geo-scoped by locale params — skip the geo-alias-in-title check
-  if (!isLocal && geography && geography !== 'Other') {
+  if (geography && geography !== 'Other') {
     const aliases = GEO_ALIASES[geography] ?? [geography.toLowerCase()]
     if (!aliases.some(a => t.includes(a))) return false
   }
@@ -512,7 +511,7 @@ const HEADLINE_KEYWORDS_INDIA = [
   'fdi approval',
 ]
 
-async function getMediaMentionCount(rawQuery: string, geography: string): Promise<{ score: number; headlines: string[] }> {
+async function getMediaMentionCount(rawQuery: string, geography: string): Promise<{ score: number; uniqueSources: number; headlines: string[] }> {
   const HEADLINE_KEYWORDS = geography === 'India'
     ? [...HEADLINE_KEYWORDS_GLOBAL, ...HEADLINE_KEYWORDS_INDIA]
     : HEADLINE_KEYWORDS_GLOBAL
@@ -524,17 +523,20 @@ async function getMediaMentionCount(rawQuery: string, geography: string): Promis
     const feed = await parser.parseURL(url)
     const cutoff = nDaysAgo(90)
 
-    // Count unique sources, weighting quality domains double
+    // Google News RSS links all route through news.google.com — use item.creator
+    // (publisher name) for deduplication; fall back to domain only if unavailable
     const sources = new Set<string>()
     let score = 0
     for (const item of feed.items) {
       if (!item.link || new Date(item.pubDate ?? 0) < cutoff) continue
-      const domain = extractDomain(item.link)
-      if (!sources.has(domain)) {
-        sources.add(domain)
+      const sourceKey = item.creator?.trim() || extractDomain(item.link)
+      if (!sources.has(sourceKey)) {
+        sources.add(sourceKey)
+        const domain = extractDomain(item.link)
         score += QUALITY_DOMAINS.has(domain) ? 2 : 1
       }
     }
+    const uniqueSources = sources.size
 
     // Collect up to 10 financially-relevant headlines, fully case-insensitive
     const headlines = feed.items
@@ -546,9 +548,9 @@ async function getMediaMentionCount(rawQuery: string, geography: string): Promis
       .map(item => item.title ?? '')
       .filter(Boolean)
 
-    return { score, headlines }
+    return { score, uniqueSources, headlines }
   } catch {
-    return { score: 0, headlines: [] }
+    return { score: 0, uniqueSources: 0, headlines: [] }
   }
 }
 
@@ -786,7 +788,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Steps 1b + 2 + 3 in parallel
-    const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, { score: mediaCount90d, headlines: newsHeadlines }] = await Promise.all([
+    const [maturityResult, { chartData, evidenceItems, synthesisItems, count30d, count90d }, { score: mediaCount90d, uniqueSources: mediaUniqueSources, headlines: newsHeadlines }] = await Promise.all([
       classifyMaturity(thesis, sector, geography),
       getDealData(geography, raw_query),
       getMediaMentionCount(raw_query, geography),
@@ -827,7 +829,7 @@ export async function POST(req: NextRequest) {
       stats: {
         count_30d: count30d,
         count_90d: count90d,
-        media_sources: mediaCount90d,
+        media_sources: mediaUniqueSources,
         velocity_ratio: Math.round(velocityRatio * 100) / 100,
         signal_gap: count90d - mediaCount90d,
         confidence,
