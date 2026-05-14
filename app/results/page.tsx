@@ -284,6 +284,18 @@ function ResultsContent() {
     { label: 'Source breadth', pct: Math.min(95, 40 + data.stats.media_sources * 4) },
     { label: 'Signal clarity', pct: Math.max(10, Math.min(95, 80 - Math.abs(data.stats.signal_gap) * 4)) },
   ] : []
+  const mcCallout = (() => {
+    if (!data?.low_data_mode || !data?.market_context) return null
+    const mc = data.market_context
+    const parts: string[] = []
+    if (mc.market_size.value != null) {
+      const val = mc.market_size.value
+      parts.push(`$${val >= 1000 ? `${(val / 1000).toFixed(1)}T` : `${val.toFixed(0)}bn`} market`)
+    }
+    if (mc.cagr.value != null) parts.push(`${mc.cagr.value.toFixed(1)}% CAGR`)
+    return parts.length > 0 ? parts.join(' · ') : null
+  })()
+
   const v = data?.stats.velocity_ratio ?? 1
   const pct = Math.round(Math.abs(v - 1) * 100)
   const velLabel = v >= 1.5 ? `↑ ${pct}% vs prior` : v <= 0.7 ? `↓ ${pct}% vs prior` : '→ flat'
@@ -404,6 +416,12 @@ function ResultsContent() {
                   <p style={{ marginTop: 14, fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6, opacity: .8, margin: '14px 0 0' }}>
                     {data.consensus.explanation}
                   </p>
+                  {mcCallout && (
+                    <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(255,255,255,.45)', borderRadius: 8, border: '1px solid rgba(43,37,32,.10)', fontSize: 12, color: 'var(--ink-mute)', lineHeight: 1.5 }}>
+                      Confirmed deal coverage is thin for this thesis — we couldn&apos;t capture enough transactions to draw conclusions. Sector benchmarks from research reports are available below.
+                      <span style={{ color: 'var(--ink)', fontWeight: 500 }}> {mcCallout}.</span>
+                    </div>
+                  )}
                 </section>
               </div>
             ) : (
@@ -449,21 +467,20 @@ function ResultsContent() {
               <SkeletonChart isMobile={isMobile} />
             )}
 
-            {/* MARKET CONTEXT PANEL */}
-            {revealed.market && data?.market_context ? (
+            {/* MARKET CONTEXT PANEL — before chart when deal data is thin */}
+            {revealed.market && data?.low_data_mode && data.market_context && (
               <div className="fade-up">
                 <MarketContextPanel data={data.market_context} isMobile={isMobile} />
               </div>
-            ) : revealed.market && data && !data.market_context ? null : (
-              loading && <div style={{ height: 140, background: 'rgba(43,37,32,.03)', borderRadius: 14, border: '1px solid rgba(43,37,32,.07)' }} className="shimmer" />
+            )}
+            {loading && !data && (
+              <div style={{ height: 140, background: 'rgba(43,37,32,.03)', borderRadius: 14, border: '1px solid rgba(43,37,32,.07)' }} className="shimmer" />
             )}
 
-            {/* LOW DATA BANNER */}
-            {revealed.narrative && data?.low_data_mode && (
+            {/* MARKET CONTEXT PANEL — after chart for data-rich searches */}
+            {revealed.market && !data?.low_data_mode && data?.market_context && (
               <div className="fade-up">
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Limited deal data for this thesis. The analysis below is based on market signals rather than confirmed transactions — treat it as directional, not definitive.
-                </div>
+                <MarketContextPanel data={data.market_context} isMobile={isMobile} />
               </div>
             )}
 
@@ -490,7 +507,12 @@ function ResultsContent() {
                   <div className="mono" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--ink-mute)', marginBottom: 4 }}>WHAT&apos;S DRIVING THE SIGNAL</div>
                   <div className="serif" style={{ fontSize: 20, marginBottom: 12 }}>Recent transactions &amp; mentions</div>
                   {data.evidence.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-mute)', fontSize: 13 }}>No recent evidence found for this thesis.</div>
+                    <div style={{ padding: '20px 24px', background: 'rgba(43,37,32,.03)', borderRadius: 12, border: '1px solid rgba(43,37,32,.07)' }}>
+                      <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--ink-soft)', fontWeight: 500 }}>No confirmed transactions captured for this thesis.</p>
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-mute)', lineHeight: 1.65 }}>
+                        This most often happens in non-English markets — local-language deal coverage isn&apos;t fully captured by our sources — or in sectors where activity is genuinely early and hasn&apos;t been widely reported. In frontier markets especially, absence of deal data is often a function of data coverage, not absence of activity.
+                      </p>
+                    </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {data.evidence.map((item, i) => (
