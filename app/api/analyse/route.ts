@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import Parser from 'rss-parser'
+import { getMarketContext } from '@/lib/queries/marketContext'
+
+export const maxDuration = 60
 
 const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const gemini = genai.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
@@ -796,8 +799,9 @@ export async function POST(req: NextRequest) {
     const priorRate = Math.max((count90d - count30d) / 60, 0.05)
     const velocityRatio = (count30d / 30) / priorRate
 
-    // Step 5
-    const thesisText = await generateThesis({
+    // Steps 5 + market context in parallel
+    const [thesisText, marketContext] = await Promise.all([
+      generateThesis({
       userInput: thesis,
       consensusState: consensus.state,
       maturity: maturityResult.maturity,
@@ -809,7 +813,9 @@ export async function POST(req: NextRequest) {
       synthesisItems,
       lowDataMode,
       newsHeadlines,
-    })
+    }),
+      getMarketContext(sector, geography),
+    ])
 
     const confidence: 'high' | 'medium' | 'low' =
       count90d >= 20 ? 'high' : count90d >= 7 ? 'medium' : 'low'
@@ -828,6 +834,7 @@ export async function POST(req: NextRequest) {
       },
       thesis: thesisText,
       evidence: evidenceItems,
+      market_context: marketContext,
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import MarketContextPanel from '@/components/MarketContextPanel'
+import type { MarketContextResult } from '@/lib/queries/marketContext'
 
 function useIsMobile(breakpoint = 700) {
   const [isMobile, setIsMobile] = useState(false)
@@ -28,6 +30,7 @@ interface AnalyseResult {
   }
   thesis: string
   evidence: { title: string; url: string; published_date: string; source: string; isTranslated?: boolean }[]
+  market_context: MarketContextResult | null
 }
 
 const STATE_META: Record<string, { color: string; bg: string; label: string; blurb: string }> = {
@@ -231,7 +234,7 @@ function ResultsContent() {
   const [error, setError] = useState('')
   const [msgIdx, setMsgIdx] = useState(0)
   const [msgKey, setMsgKey] = useState(0)
-  const [revealed, setRevealed] = useState({ verdict: false, chart: false, narrative: false, evidence: false })
+  const [revealed, setRevealed] = useState({ verdict: false, chart: false, market: false, narrative: false, evidence: false })
   const [pinPressed, setPinPressed] = useState(false)
 
   useEffect(() => {
@@ -249,8 +252,9 @@ function ResultsContent() {
         clearInterval(timer)
         setRevealed(r => ({ ...r, verdict: true }))
         setTimeout(() => setRevealed(r => ({ ...r, chart: true })), 350)
-        setTimeout(() => setRevealed(r => ({ ...r, narrative: true })), 700)
-        setTimeout(() => setRevealed(r => ({ ...r, evidence: true })), 1050)
+        setTimeout(() => setRevealed(r => ({ ...r, market: true })), 700)
+        setTimeout(() => setRevealed(r => ({ ...r, narrative: true })), 1050)
+        setTimeout(() => setRevealed(r => ({ ...r, evidence: true })), 1400)
       })
       .catch(e => { setError(e instanceof Error ? e.message : 'Unknown error'); setLoading(false); clearInterval(timer) })
     return () => clearInterval(timer)
@@ -436,6 +440,15 @@ function ResultsContent() {
               </div>
             ) : (
               <SkeletonChart isMobile={isMobile} />
+            )}
+
+            {/* MARKET CONTEXT PANEL */}
+            {revealed.market && data?.market_context ? (
+              <div className="fade-up">
+                <MarketContextPanel data={data.market_context} isMobile={isMobile} />
+              </div>
+            ) : revealed.market && data && !data.market_context ? null : (
+              loading && <div style={{ height: 140, background: 'rgba(43,37,32,.03)', borderRadius: 14, border: '1px solid rgba(43,37,32,.07)' }} className="shimmer" />
             )}
 
             {/* LOW DATA BANNER */}
