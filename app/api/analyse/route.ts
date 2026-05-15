@@ -211,11 +211,10 @@ const TITLE_STOP_WORDS = new Set([
   'its', 'are', 'was', 'been', 'into', 'new', 'over', 'deal', 'company',
 ])
 
-const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
-
 function isSameStory(a: NewsItem, b: NewsItem): boolean {
-  // Must be published within 2 days of each other to be the same story
-  if (Math.abs(a.pub.getTime() - b.pub.getTime()) > TWO_DAYS_MS) return false
+  // No time window — the same acquisition can generate coverage for weeks.
+  // 4 shared content words is specific enough to identify the same event
+  // without merging genuinely different deals.
   const words = (t: string) => new Set(
     t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
       .filter(w => w.length > 3 && !TITLE_STOP_WORDS.has(w))
