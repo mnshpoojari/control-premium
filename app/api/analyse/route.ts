@@ -816,7 +816,7 @@ export async function POST(req: NextRequest) {
       lowDataMode,
       newsHeadlines,
     }),
-      getMarketContext(sector, geography),
+      getMarketContext(sector, geography, raw_query),
     ])
 
     const confidence: 'high' | 'medium' | 'low' =

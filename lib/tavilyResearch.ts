@@ -234,11 +234,14 @@ async function runSearch(client: ReturnType<typeof tavily>, query: string): Prom
 
 export async function getMarketResearch(
   sector: string,
-  geography: string
+  geography: string,
+  searchQuery?: string
 ): Promise<MarketResearch> {
   const client = tavily({ apiKey: process.env.TAVILY_API_KEY! })
-  const geo    = geography
-  const sec    = sector
+  const geo = geography
+  // Use caller-supplied search query (e.g. "protein India") when available —
+  // it's more specific than the broad sector label (e.g. "Agriculture Tech")
+  const sec = searchQuery ?? sector
 
   // Run all searches in parallel
   const [cagrResults, sizeResults, valuationResults, fundingResults, competitiveResults, trendsResults] =
@@ -263,10 +266,15 @@ export async function getMarketResearch(
     }
   }
 
-  // Extract CAGR estimates
+  const geoLower = geo.toLowerCase()
+
+  // Extract CAGR estimates — require geography term in the snippet to avoid
+  // picking up global market figures that mention the geography incidentally
   const cagrEstimates: CAGREstimate[] = []
   for (const r of [...cagrResults, ...sizeResults]) {
-    const extracted = extractCAGR(r.content + ' ' + r.title)
+    const text = r.content + ' ' + r.title
+    if (!text.toLowerCase().includes(geoLower)) continue
+    const extracted = extractCAGR(text)
     if (extracted) {
       cagrEstimates.push({
         ...extracted,
@@ -276,10 +284,12 @@ export async function getMarketResearch(
     }
   }
 
-  // Extract market size estimates
+  // Extract market size estimates — same geo-relevance guard
   const sizeEstimates: MarketSizeEstimate[] = []
   for (const r of [...sizeResults, ...cagrResults]) {
-    const extracted = extractMarketSize(r.content + ' ' + r.title)
+    const text = r.content + ' ' + r.title
+    if (!text.toLowerCase().includes(geoLower)) continue
+    const extracted = extractMarketSize(text)
     if (extracted) {
       sizeEstimates.push({
         ...extracted,

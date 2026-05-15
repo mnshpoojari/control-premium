@@ -189,23 +189,27 @@ async function buildResult(research: MarketResearch): Promise<MarketContextResul
 
 export async function getMarketContext(
   sector: string,
-  geography: string
+  geography: string,
+  searchQuery?: string
 ): Promise<MarketContextResult | null> {
+  // Cache under the specific search query when provided, not the broad sector
+  // label — "protein" and "Agriculture Tech" should have separate cache entries
+  const cacheKey = searchQuery ?? sector
   try {
-    const cached = await checkCache(sector, geography)
+    const cached = await checkCache(cacheKey, geography)
     if (cached) {
-      await logQuery(sector, geography, true, cached.result)
+      await logQuery(cacheKey, geography, true, cached.result)
       return cached.result
     }
 
     // Tavily retrieves, Gemini synthesises
-    const research = await getMarketResearch(sector, geography)
+    const research = await getMarketResearch(sector, geography, searchQuery)
     const result   = await buildResult(research)
 
     if (result) {
       await Promise.all([
-        upsertCache(sector, geography, result),
-        logQuery(sector, geography, false, result),
+        upsertCache(cacheKey, geography, result),
+        logQuery(cacheKey, geography, false, result),
       ])
     }
 
