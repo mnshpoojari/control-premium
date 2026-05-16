@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase-client'
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 
@@ -418,9 +420,22 @@ function PadNote({ note, onMove, onRemove, onSelect }: {
   )
 }
 
-function ThesisPad({ notes, setNotes, isMobile, onSelect }: { notes: PadNote[]; setNotes: React.Dispatch<React.SetStateAction<PadNote[]>>; isMobile: boolean; onSelect: (text: string) => void }) {
-  const onMove = (id: string, p: { x: number; y: number }) => setNotes(prev => prev.map(n => n.id === id ? { ...n, ...p } : n))
-  const onRemove = (id: string) => setNotes(prev => prev.filter(n => n.id !== id))
+function ThesisPad({ notes, setNotes, isMobile, onSelect, onRemove: onRemoveProp, onMove: onMoveProp }: {
+  notes: PadNote[]
+  setNotes: React.Dispatch<React.SetStateAction<PadNote[]>>
+  isMobile: boolean
+  onSelect: (text: string) => void
+  onRemove?: (id: string) => void
+  onMove?: (id: string, p: { x: number; y: number }) => void
+}) {
+  const onMove = (id: string, p: { x: number; y: number }) => {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, ...p } : n))
+    onMoveProp?.(id, p)
+  }
+  const onRemove = (id: string) => {
+    setNotes(prev => prev.filter(n => n.id !== id))
+    onRemoveProp?.(id)
+  }
   const boardH = isMobile ? 220 : 320
 
   return (
@@ -538,25 +553,110 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
   )
 }
 
+// ── SaveBanner ─────────────────────────────────────────────────────────────────
+
+function SaveBanner({ onDismiss, onSignIn }: { onDismiss: () => void; onSignIn: () => void }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 100, display: 'flex', alignItems: 'center', gap: 12,
+      background: '#1A1A1A', color: '#F5F5F0', padding: '14px 20px', borderRadius: 12,
+      boxShadow: '0 8px 32px -8px rgba(0,0,0,.5)', maxWidth: 'calc(100vw - 32px)',
+      animation: 'fade-in .25s ease',
+    }}>
+      <span style={{ fontSize: 16 }}>📌</span>
+      <div>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Don&rsquo;t lose this</p>
+        <p style={{ margin: '1px 0 0', fontSize: 12, color: 'rgba(245,245,240,.6)' }}>Sign in to save your pinned theses.</p>
+      </div>
+      <button onClick={onSignIn} style={{ appearance: 'none', border: 0, background: '#A3E635', color: '#1a1a1a', fontWeight: 700, fontSize: 12, padding: '7px 14px', borderRadius: 8, cursor: 'default', whiteSpace: 'nowrap' }}>
+        Sign in →
+      </button>
+      <button onClick={onDismiss} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'rgba(245,245,240,.4)', fontSize: 18, cursor: 'default', padding: '0 4px', lineHeight: 1 }}>×</button>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const [topSectors, setTopSectors] = useState<SectorData[]>([])
   const [sectorsLoading, setSectorsLoading] = useState(true)
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
   const [padPreset, setPadPreset] = useState<{ sector: string; geo: string } | null>(null)
+  const [showSaveBanner, setShowSaveBanner] = useState(false)
   const [{ dateStr }] = useState(() => getMarketStatus())
   const isMobile = useIsMobile()
+  const migratedRef = useRef(false)
 
+  // ── Load pins ──────────────────────────────────────────────────────────────
+
+  // Load from Supabase when signed in, fallback to localStorage
+  const loadPins = useCallback(async (uid: string) => {
+    const { data, error } = await supabase
+      .from('user_pins')
+      .select('id,text,state,x,y,tilt,deals30,deals90,media')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: true })
+    if (!error && data) {
+      setPadNotes(data as PadNote[])
+    }
+  }, [])
+
+  // On mount: load top sectors + pins
   useEffect(() => {
     fetch('/api/top-sectors').then(r => r.json()).then(d => { setTopSectors(Array.isArray(d) ? d : []); setSectorsLoading(false) }).catch(() => setSectorsLoading(false))
     try { const s = localStorage.getItem('premia-pad-notes'); if (s) setPadNotes(JSON.parse(s)) } catch (_) {}
   }, [])
 
+  // When auth resolves: load from Supabase + migrate localStorage pins
   useEffect(() => {
+    if (authLoading || !user) return
+    // Migrate any localStorage pins on first sign-in
+    if (!migratedRef.current) {
+      migratedRef.current = true
+      try {
+        const raw = localStorage.getItem('premia-pad-notes')
+        if (raw) {
+          const local: PadNote[] = JSON.parse(raw)
+          if (local.length > 0) {
+            const rows = local.map(n => ({ ...n, user_id: user.id }))
+            supabase.from('user_pins').upsert(rows, { onConflict: 'id' }).then(() => {
+              localStorage.removeItem('premia-pad-notes')
+              loadPins(user.id)
+            })
+            return
+          }
+        }
+      } catch (_) {}
+    }
+    loadPins(user.id)
+  }, [user, authLoading, loadPins])
+
+  // ── Save pins to Supabase when signed in, else localStorage ───────────────
+
+  const savePinsRef = useRef<PadNote[]>([])
+  savePinsRef.current = padNotes
+
+  const persistNote = useCallback(async (note: PadNote) => {
+    if (!user) return
+    await supabase.from('user_pins').upsert({ ...note, user_id: user.id }, { onConflict: 'id' })
+  }, [user])
+
+  const deleteNote = useCallback(async (id: string) => {
+    if (!user) return
+    await supabase.from('user_pins').delete().eq('id', id).eq('user_id', user.id)
+  }, [user])
+
+  // Sync to localStorage when not signed in
+  useEffect(() => {
+    if (user) return
     try { localStorage.setItem('premia-pad-notes', JSON.stringify(padNotes)) } catch (_) {}
-  }, [padNotes])
+  }, [padNotes, user])
+
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   const handleAnalyse = (thesis: string) => router.push(`/results?thesis=${encodeURIComponent(thesis)}`)
 
@@ -566,11 +666,30 @@ export default function HomePage() {
   }
 
   const handlePin = (sector: string, geo: string) => {
-    setPadNotes(prev => [...prev, {
-      id: Date.now().toString(), text: `${sector} in ${geo}`, state: 'QUIET',
-      x: 20 + (prev.length % 4) * 195, y: 30 + Math.floor(prev.length / 4) * 130,
+    const note: PadNote = {
+      id: crypto.randomUUID(), text: `${sector} in ${geo}`, state: 'QUIET',
+      x: 20 + (padNotes.length % 4) * 195, y: 30 + Math.floor(padNotes.length / 4) * 130,
       tilt: (Math.random() - 0.5) * 6, deals30: 0, deals90: 0, media: 0,
-    }])
+    }
+    setPadNotes(prev => [...prev, note])
+    if (user) {
+      persistNote(note)
+    } else {
+      setShowSaveBanner(true)
+    }
+  }
+
+  const handleRemoveNote = (id: string) => {
+    setPadNotes(prev => prev.filter(n => n.id !== id))
+    if (user) deleteNote(id)
+  }
+
+  const handleMoveNote = (id: string, p: { x: number; y: number }) => {
+    setPadNotes(prev => prev.map(n => n.id === id ? { ...n, ...p } : n))
+    if (user) {
+      const note = padNotes.find(n => n.id === id)
+      if (note) persistNote({ ...note, ...p })
+    }
   }
 
   return (
@@ -584,16 +703,36 @@ export default function HomePage() {
             {dateStr}
           </div>
         )}
-        <button onClick={() => router.push('/brief')} className="btn-glow"
-          style={{ fontSize: isMobile ? '0.75rem' : '0.85rem', fontWeight: 600, padding: isMobile ? '5px 12px' : '6px 16px', borderRadius: 999, color: '#3B2F2F', backgroundColor: '#A3E635', border: 'none', cursor: 'default', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {isMobile ? 'Brief →' : 'Intelligence Brief →'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {!authLoading && (
+            user ? (
+              <button onClick={() => router.push('/account')} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.55)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, cursor: 'default' }}>
+                {user.email?.split('@')[0] ?? 'Account'} ↓
+              </button>
+            ) : (
+              <button onClick={() => router.push('/auth')} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.55)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, cursor: 'default' }}>
+                Sign in
+              </button>
+            )
+          )}
+          <button onClick={() => router.push('/brief')} className="btn-glow"
+            style={{ fontSize: isMobile ? '0.75rem' : '0.85rem', fontWeight: 600, padding: isMobile ? '5px 12px' : '6px 16px', borderRadius: 999, color: '#3B2F2F', backgroundColor: '#A3E635', border: 'none', cursor: 'default', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {isMobile ? 'Brief →' : 'Intelligence Brief →'}
+          </button>
+        </div>
       </header>
 
       <main style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '4px 14px 48px' : '8px 32px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 24 }}>
           <SignalBoard onAnalyse={handleAnalyse} onPin={handlePin} isMobile={isMobile} preset={padPreset} />
-          <ThesisPad notes={padNotes} setNotes={setPadNotes} isMobile={isMobile} onSelect={handlePadSelect} />
+          <ThesisPad
+            notes={padNotes}
+            setNotes={setPadNotes}
+            isMobile={isMobile}
+            onSelect={handlePadSelect}
+            onRemove={handleRemoveNote}
+            onMove={handleMoveNote}
+          />
           <SectorBoard data={topSectors} loading={sectorsLoading} onSelect={handleAnalyse} isMobile={isMobile} />
         </div>
       </main>
@@ -603,6 +742,13 @@ export default function HomePage() {
         <span style={{ margin: '0 8px' }}>·</span>
         <a href="mailto:manishapoojari48@gmail.com" style={{ color: 'var(--ink-soft)', fontWeight: 600, textDecoration: 'none' }}>Contact</a>
       </footer>
+
+      {showSaveBanner && !user && (
+        <SaveBanner
+          onDismiss={() => setShowSaveBanner(false)}
+          onSignIn={() => router.push('/auth?reason=pin')}
+        />
+      )}
     </div>
   )
 }

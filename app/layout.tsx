@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Young_Serif, Instrument_Sans, JetBrains_Mono } from 'next/font/google'
+import { AuthProvider } from '@/contexts/AuthContext'
 import './globals.css'
 
 const youngSerif = Young_Serif({
@@ -31,7 +32,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${youngSerif.variable} ${instrumentSans.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }

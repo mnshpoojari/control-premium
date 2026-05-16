@@ -4,6 +4,8 @@ import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import MarketContextPanel from '@/components/MarketContextPanel'
 import type { MarketContextResult } from '@/lib/queries/marketContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase-client'
 
 function useIsMobile(breakpoint = 700) {
   const [isMobile, setIsMobile] = useState(false)
@@ -228,6 +230,7 @@ function ResultsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const isMobile = useIsMobile()
+  const { user } = useAuth()
   const thesis = searchParams.get('thesis') ?? ''
   const [data, setData] = useState<AnalyseResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -260,18 +263,23 @@ function ResultsContent() {
     return () => clearInterval(timer)
   }, [thesis, router])
 
-  const handlePin = () => {
+  const handlePin = async () => {
     if (!data) return
-    try {
-      const saved = JSON.parse(localStorage.getItem('premia-pad-notes') || '[]')
-      const note = {
-        id: Date.now().toString(), text: thesis, state: data.consensus.state,
-        x: 20 + (saved.length % 4) * 210, y: 30 + Math.floor(saved.length / 4) * 140,
-        tilt: (Math.random() - 0.5) * 6,
-        deals30: data.stats.count_30d, deals90: data.stats.count_90d, media: data.stats.media_sources,
-      }
-      localStorage.setItem('premia-pad-notes', JSON.stringify([...saved, note]))
-    } catch (_) {}
+    const note = {
+      id: crypto.randomUUID(), text: thesis, state: data.consensus.state,
+      x: 20, y: 30,
+      tilt: (Math.random() - 0.5) * 6,
+      deals30: data.stats.count_30d, deals90: data.stats.count_90d, media: data.stats.media_sources,
+    }
+    if (user) {
+      await supabase.from('user_pins').insert({ ...note, user_id: user.id })
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem('premia-pad-notes') || '[]')
+        const positioned = { ...note, x: 20 + (saved.length % 4) * 210, y: 30 + Math.floor(saved.length / 4) * 140 }
+        localStorage.setItem('premia-pad-notes', JSON.stringify([...saved, positioned]))
+      } catch (_) {}
+    }
   }
 
   const meta = data ? (STATE_META[data.consensus.state] ?? STATE_META['QUIET']) : null
