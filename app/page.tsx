@@ -553,6 +553,55 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
   )
 }
 
+// ── AccountDropdown ────────────────────────────────────────────────────────────
+
+function AccountDropdown({ label, onAccount, onSignOut }: { label: string; onAccount: () => void; onSignOut: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: open ? 'rgba(43,37,32,.08)' : 'rgba(255,255,255,.55)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, cursor: 'default', transition: 'background .15s' }}
+      >
+        {label} ↓
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50,
+          background: '#FAF8F3', border: '1px solid rgba(43,37,32,.14)', borderRadius: 10,
+          boxShadow: '0 8px 24px -8px rgba(43,37,32,.25)', minWidth: 148, overflow: 'hidden',
+        }}>
+          <button
+            onClick={() => { setOpen(false); onAccount() }}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 16px', fontSize: 13, fontWeight: 500, color: 'var(--ink)', background: 'transparent', border: 0, cursor: 'default', transition: 'background .12s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(43,37,32,.06)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            My Account
+          </button>
+          <div style={{ height: 1, background: 'rgba(43,37,32,.08)', margin: '0 10px' }} />
+          <button
+            onClick={() => { setOpen(false); onSignOut() }}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 16px', fontSize: 13, fontWeight: 500, color: '#B83A26', background: 'transparent', border: 0, cursor: 'default', transition: 'background .12s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(184,58,38,.06)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── SaveBanner ─────────────────────────────────────────────────────────────────
 
 function SaveBanner({ onDismiss, onSignIn }: { onDismiss: () => void; onSignIn: () => void }) {
@@ -581,7 +630,7 @@ function SaveBanner({ onDismiss, onSignIn }: { onDismiss: () => void; onSignIn: 
 
 export default function HomePage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, signOut } = useAuth()
   const [topSectors, setTopSectors] = useState<SectorData[]>([])
   const [sectorsLoading, setSectorsLoading] = useState(true)
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
@@ -706,9 +755,11 @@ export default function HomePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {!authLoading && (
             user ? (
-              <button onClick={() => router.push('/account')} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.55)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, cursor: 'default' }}>
-                {user.email?.split('@')[0] ?? 'Account'} ↓
-              </button>
+              <AccountDropdown
+                label={user.email?.split('@')[0] ?? 'Account'}
+                onAccount={() => router.push('/account')}
+                onSignOut={async () => { await signOut(); router.refresh() }}
+              />
             ) : (
               <button onClick={() => router.push('/auth')} style={{ appearance: 'none', border: '1px solid rgba(43,37,32,.18)', background: 'rgba(255,255,255,.55)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, cursor: 'default' }}>
                 Sign in
@@ -717,7 +768,7 @@ export default function HomePage() {
           )}
           <button onClick={() => router.push('/brief')} className="btn-glow"
             style={{ fontSize: isMobile ? '0.75rem' : '0.85rem', fontWeight: 600, padding: isMobile ? '5px 12px' : '6px 16px', borderRadius: 999, color: '#3B2F2F', backgroundColor: '#A3E635', border: 'none', cursor: 'default', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {isMobile ? 'Brief →' : 'Intelligence Brief →'}
+            {isMobile ? 'Brief →' : 'News Brief of the Day! →'}
           </button>
         </div>
       </header>
