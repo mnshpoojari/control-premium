@@ -27,10 +27,17 @@ const TIER_2_FEEDS = [
   'https://feeds.reuters.com/reuters/businessNews',
   'https://rss.nytimes.com/services/xml/rss/nyt/DealBook.xml',
   'https://www.axios.com/feeds/feed/markets.xml',
-  'https://www.businesswire.com/rss/home/?rss=g22',
-  'https://www.prnewswire.com/rss/news-releases-list.rss',
   'https://www.arabianbusiness.com/rss',
   'https://economictimes.indiatimes.com/markets/rss.cms',
+]
+
+// Macro-economic feeds — no deal keyword filter applied
+const MACRO_FEEDS = [
+  'https://feeds.reuters.com/reuters/companyNews',
+  'https://feeds.ft.com/rss/home/uk',
+  'https://economictimes.indiatimes.com/markets/commodities/rss.cms',
+  'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
+  'https://www.wsj.com/xml/rss/3_7014.xml',
 ]
 
 const TIER_3_QUERIES = [
@@ -40,6 +47,16 @@ const TIER_3_QUERIES = [
   'take private deal 2025',
   '"sovereign wealth fund" OR "family office" acquisition 2025',
   '"private equity" OR "growth equity" investment stake 2025',
+]
+
+// Macro-economic Google News queries
+const MACRO_QUERIES = [
+  'gold price inflation 2025',
+  'interest rate decision Federal Reserve ECB RBI 2025',
+  'oil price OPEC crude 2025',
+  'inflation CPI data 2025',
+  'bond yield treasury 2025',
+  'currency dollar rupee euro 2025',
 ]
 
 const DEAL_KEYWORDS = [
@@ -113,8 +130,8 @@ async function fetchFeed(url: string, requireDealKeyword: boolean): Promise<RawI
   }
 }
 
-async function fetchAllItems(): Promise<RawItem[]> {
-  const feeds: [string, boolean][] = [
+async function fetchAllItems(): Promise<{ deal: RawItem[]; macro: RawItem[] }> {
+  const dealFeeds: [string, boolean][] = [
     ...TIER_1_FEEDS.map(u => [u, false] as [string, boolean]),
     ...TIER_2_FEEDS.map(u => [u, true] as [string, boolean]),
     ...TIER_3_QUERIES.map(q => [
@@ -123,23 +140,34 @@ async function fetchAllItems(): Promise<RawItem[]> {
     ] as [string, boolean]),
   ]
 
-  const batches = await Promise.all(feeds.map(([url, req]) => fetchFeed(url, req)))
+  const macroFeeds: [string, boolean][] = [
+    ...MACRO_FEEDS.map(u => [u, false] as [string, boolean]),
+    ...MACRO_QUERIES.map(q => [
+      `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`,
+      false,
+    ] as [string, boolean]),
+  ]
 
-  const seen = new Set<string>()
-  const items: RawItem[] = []
-  for (const batch of batches) {
-    for (const item of batch) {
-      if (!seen.has(item.url)) {
-        seen.add(item.url)
-        items.push(item)
+  const [dealBatches, macroBatches] = await Promise.all([
+    Promise.all(dealFeeds.map(([url, req]) => fetchFeed(url, req))),
+    Promise.all(macroFeeds.map(([url, req]) => fetchFeed(url, req))),
+  ])
+
+  function dedup(batches: RawItem[][]): RawItem[] {
+    const seen = new Set<string>()
+    const items: RawItem[] = []
+    for (const batch of batches) {
+      for (const item of batch) {
+        if (!seen.has(item.url)) { seen.add(item.url); items.push(item) }
       }
     }
+    return items.sort((a, b) => b.pub.getTime() - a.pub.getTime())
   }
 
-  // Sort by recency, cap at 80 items
-  return items
-    .sort((a, b) => b.pub.getTime() - a.pub.getTime())
-    .slice(0, 80)
+  return {
+    deal:  dedup(dealBatches).slice(0, 60),
+    macro: dedup(macroBatches).slice(0, 30),
+  }
 }
 
 // ── Recurring story tracking ───────────────────────────────────────────────────
@@ -185,8 +213,11 @@ Include the deal URL on its own line immediately after the deal narrative block,
 Signals, not certainty. Strategic reviews, companies exploring options, activist pressure, balance sheet stress, refinancing risk, regulatory overhangs. For each: why this could evolve into a transaction or control shift, and what specific developments would confirm or weaken the thesis.
 Include the URL on its own line after each item.
 
+**Macro Pulse**
+Gold, oil, rates, inflation, currencies — the variables that reprice every deal model. Cover what actually moved today: the number, the direction, and why it matters to someone allocating capital. If rates moved, say by how much and what it implies for leveraged buyout financing costs. If oil spiked, say which basket, by what percentage, and which sectors feel it first. If inflation data printed, compare to expectations. Be precise. No vague signals — only things that changed the calculus. Include the URL on its own line after each item.
+
 **Regulatory and Market Intelligence**
-Developments shaping the transaction environment even when no deal is imminent. Regulation, antitrust, policy, fundraising signals, financing conditions, macro developments with direct capital implications. For each: what happened stated plainly, and how it changes the math on transactions or ownership.
+Developments shaping the transaction environment even when no deal is imminent. Regulation, antitrust, policy, fundraising signals, financing conditions. For each: what happened stated plainly, and how it changes the math on transactions or ownership.
 Include the URL on its own line after each item.
 
 **Sector Heatmap**
@@ -214,30 +245,35 @@ WRITING RULES:
 
 Return only the brief. No preamble, no closing remarks.`
 
-async function generateBrief(items: RawItem[], previousSeen: Set<string>): Promise<string> {
+function formatItems(items: RawItem[], previousSeen: Set<string>, offset = 0): { text: string; fresh: RawItem[] } {
+  const fresh = items.filter(item => !previousSeen.has(item.url))
+  const text = fresh.map((item, i) => [
+    `[${offset + i + 1}]`,
+    `Title: ${item.title}`,
+    `Source: ${item.source}`,
+    `Date: ${item.pub.toISOString().split('T')[0]}`,
+    `URL: ${item.url}`,
+  ].join('\n')).join('\n\n')
+  return { text, fresh }
+}
+
+async function generateBrief(items: { deal: RawItem[]; macro: RawItem[] }, previousSeen: Set<string>): Promise<string> {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
-  // Strip URLs seen in the last 3 briefs — Gemini only sees fresh items
-  const freshItems = items.filter(item => !previousSeen.has(item.url))
-
-  const itemsText = freshItems.map((item, i) => {
-    const lines = [
-      `[${i + 1}]`,
-      `Title: ${item.title}`,
-      `Source: ${item.source}`,
-      `Date: ${item.pub.toISOString().split('T')[0]}`,
-      `URL: ${item.url}`,
-    ]
-    return lines.join('\n')
-  }).join('\n\n')
+  const { text: dealText, fresh: freshDeal } = formatItems(items.deal, previousSeen, 0)
+  const { text: macroText, fresh: freshMacro } = formatItems(items.macro, previousSeen, freshDeal.length)
 
   const prompt = `${BRIEF_SYSTEM_PROMPT}
 
 Today's date: ${today}
 
-NEWS ITEMS:
+DEAL & TRANSACTION NEWS:
 
-${itemsText}`
+${dealText}
+
+MACRO-ECONOMIC NEWS (gold, oil, rates, inflation, currencies):
+
+${macroText}`
 
   const result = await gemini.generateContent(prompt)
   return result.response.text().trim()
@@ -251,12 +287,12 @@ async function run() {
     getPreviousSeenUrls(),
   ])
 
-  if (items.length === 0) {
+  if (items.deal.length === 0 && items.macro.length === 0) {
     return NextResponse.json({ error: 'No news items found' }, { status: 422 })
   }
 
   const content = await generateBrief(items, previousSeen)
-  const seenUrls = items.map(i => i.url) // log all fetched URLs, not just fresh ones
+  const seenUrls = [...items.deal, ...items.macro].map(i => i.url)
   const today = new Date().toISOString().split('T')[0]
 
   await sbUpsert('daily_briefs', {
