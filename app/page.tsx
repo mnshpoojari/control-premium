@@ -553,6 +553,89 @@ function SectorBoard({ data, loading, onSelect, isMobile }: { data: SectorData[]
   )
 }
 
+// ── ReturnBanner ───────────────────────────────────────────────────────────────
+
+const STATE_LABELS: Record<string, string> = {
+  'EARLY SIGNAL': 'Early Signal', 'CONSENSUS': 'Crowded', 'HYPE': 'Hype',
+  'QUIET': 'Quiet', 'ACTIVE': 'Active', 'ESTABLISHED': 'Established',
+  'NARRATIVE': 'Narrative', 'COOLING': 'Cooling',
+}
+
+const STATE_COLORS: Record<string, string> = {
+  'EARLY SIGNAL': '#7CB518', 'CONSENSUS': '#A88B4C', 'HYPE': '#B83A26',
+  'QUIET': '#8C7E6F', 'ACTIVE': '#A88B4C', 'ESTABLISHED': '#7CB518',
+  'NARRATIVE': '#B83A26', 'COOLING': '#8C7E6F',
+}
+
+type MovedPin = {
+  id: string; text: string; original_state: string; current_state: string
+  moved: boolean; direction: 'up' | 'down' | 'none'; weeks_ago: number
+}
+
+function ReturnBanner({ moved, onDismiss, onAnalyse }: {
+  moved: MovedPin[]
+  onDismiss: () => void
+  onAnalyse: (text: string) => void
+}) {
+  const first = moved[0]
+  const rest  = moved.length - 1
+  const verb  = first.direction === 'up' ? 'is moving' : 'has shifted'
+  const ago   = first.weeks_ago > 0 ? ` You marked this ${first.weeks_ago === 1 ? 'a week' : `${first.weeks_ago} weeks`} ago.` : ''
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 200, width: 'calc(100vw - 32px)', maxWidth: 480,
+      background: '#1A1611', borderRadius: 14,
+      boxShadow: '0 12px 40px -12px rgba(0,0,0,.6)',
+      border: '1px solid rgba(255,255,255,.08)',
+      padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: '.16em', color: 'rgba(245,245,240,.4)', marginBottom: 4 }}>
+            YOU CALLED IT
+          </div>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#F5F5F0', lineHeight: 1.35 }}>
+            <span style={{ color: STATE_COLORS[first.current_state] ?? '#A3E635' }}>
+              {first.text}
+            </span>
+            {' '}{verb}.{ago}
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(245,245,240,.5)' }}>
+            {STATE_LABELS[first.original_state] ?? first.original_state}
+            {' → '}
+            <span style={{ color: STATE_COLORS[first.current_state] ?? '#F5F5F0' }}>
+              {STATE_LABELS[first.current_state] ?? first.current_state}
+            </span>
+            {rest > 0 && ` · and ${rest} other${rest > 1 ? 's' : ''}`}
+          </p>
+        </div>
+        <button onClick={onDismiss} style={{ appearance: 'none', border: 0, background: 'transparent', color: 'rgba(245,245,240,.3)', fontSize: 18, cursor: 'default', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => onAnalyse(first.text)}
+          style={{ appearance: 'none', border: 0, background: '#A3E635', color: '#1a1a1a', fontSize: 12, fontWeight: 700, padding: '7px 16px', borderRadius: 8, cursor: 'default' }}
+        >
+          Run analysis →
+        </button>
+        {rest > 0 && (
+          <button
+            onClick={onDismiss}
+            style={{ appearance: 'none', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(245,245,240,.6)', fontSize: 12, fontWeight: 500, padding: '7px 14px', borderRadius: 8, cursor: 'default' }}
+          >
+            See all on pad
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── AccountDropdown ────────────────────────────────────────────────────────────
 
 function AccountDropdown({ label, onAccount, onSignOut }: { label: string; onAccount: () => void; onSignOut: () => void }) {
@@ -636,6 +719,8 @@ export default function HomePage() {
   const [padNotes, setPadNotes] = useState<PadNote[]>([])
   const [padPreset, setPadPreset] = useState<{ sector: string; geo: string } | null>(null)
   const [showSaveBanner, setShowSaveBanner] = useState(false)
+  const [movedPins, setMovedPins] = useState<MovedPin[]>([])
+  const [showReturnBanner, setShowReturnBanner] = useState(false)
   const [{ dateStr }] = useState(() => getMarketStatus())
   const isMobile = useIsMobile()
   const migratedRef = useRef(false)
@@ -683,6 +768,42 @@ export default function HomePage() {
     }
     loadPins(user.id)
   }, [user, authLoading, loadPins])
+
+  // ── Check for moved pins once per 6h after sign-in ────────────────────────
+
+  useEffect(() => {
+    if (!user || padNotes.length === 0) return
+    const CHECK_KEY = `premia-pin-check-${user.id}`
+    const last = localStorage.getItem(CHECK_KEY)
+    const sixHours = 6 * 60 * 60 * 1000
+    if (last && Date.now() - parseInt(last) < sixHours) return
+
+    // Fetch created_at from Supabase so we can report "X weeks ago"
+    supabase
+      .from('user_pins')
+      .select('id,text,state,created_at')
+      .eq('user_id', user.id)
+      .then(async ({ data }) => {
+        if (!data || data.length === 0) return
+        const pins = data.map(p => ({ id: p.id, text: p.text, state: p.state, pinned_at: p.created_at }))
+        try {
+          const res = await fetch('/api/pins/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pins }),
+          })
+          if (!res.ok) return
+          const { results } = await res.json() as { results: MovedPin[] }
+          const moved = results.filter(r => r.moved)
+          if (moved.length > 0) {
+            setMovedPins(moved)
+            setShowReturnBanner(true)
+          }
+          localStorage.setItem(CHECK_KEY, Date.now().toString())
+        } catch {}
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, padNotes.length])
 
   // ── Save pins to Supabase when signed in, else localStorage ───────────────
 
@@ -798,6 +919,14 @@ export default function HomePage() {
         <SaveBanner
           onDismiss={() => setShowSaveBanner(false)}
           onSignIn={() => router.push('/auth?reason=pin')}
+        />
+      )}
+
+      {showReturnBanner && movedPins.length > 0 && (
+        <ReturnBanner
+          moved={movedPins}
+          onDismiss={() => setShowReturnBanner(false)}
+          onAnalyse={text => { setShowReturnBanner(false); handleAnalyse(text) }}
         />
       )}
     </div>
