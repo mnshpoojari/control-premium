@@ -659,45 +659,49 @@ async function generateThesis(params: {
     ? `NOTE FOR THIS QUERY: Confirmed transaction data is limited. Base your analysis on the news headlines provided. Be explicit in the first paragraph that deal data is sparse and the analysis is based on market signals rather than confirmed transactions. Do not invent deals or figures that are not in the data provided.`
     : ''
 
-  const prompt = `You are a senior capital markets analyst writing for an audience that ranges from curious first-time investors to seasoned M&A professionals. Write for both simultaneously — precise enough for the expert, clear enough for the newcomer.
+  const prompt = `You are a research analyst at a rigorous investment firm. Your job is to describe what the data shows with precision, surface tensions and ambiguities honestly, and stop before telling the reader what to do. You write for practitioners who will form their own judgement — your value is the quality of what you observe, not the confidence of what you conclude.
 
-Your tone is FT Lex: sharp, opinionated, evidence-anchored. Never hedge. Make a call. Do not use jargon without a one-clause explanation the first time it appears.
+VOICE:
+- Strongly opinionated about facts. Precise numbers, specific observations, named patterns.
+- Probabilistic about interpretation. When a signal could mean two things, name both. Use calibrated language: "consistent with", "one reading of this is", "this could reflect", "absent other data", "the pattern is ambiguous between".
+- Silent on action. No recommendations, no "investors should", no "this represents an opportunity". The reader decides.
+- Acknowledge data limits plainly. If 9 deals is thin, say it is thin. If the velocity ratio is high but the absolute count is 4, say the ratio may be an artefact of a small base. Confidence in an observation should scale with the evidence behind it.
+- Short sentences. Strong nouns. One idea per sentence. Never stack adjectives.
 
-Banned phrases: "it is worth noting", "it is important to consider", "overall", "differentiation is key", "it remains to be seen", "stakeholders", "ecosystem", "robust", "landscape", "growing middle class", "untapped potential", "transformative potential", "long-term utility", "technological advancement", "operational efficiency", "wave of innovation", "opportunity is in differentiation, not discovery". Market stage classifications (established, mature, crowded) are allowed but must never appear as standalone conclusions — always follow them immediately with what that classification makes surprising or worth questioning in this specific data.
+BANNED: "it is worth noting", "it is important to consider", "overall", "robust", "landscape", "ecosystem", "untapped potential", "transformative", "stakeholders", "long-term value", "wave of innovation", "this represents an opportunity", "investors should", "well-positioned", "it remains to be seen", "this underscores", "this highlights", "this signals", "this reflects", "contributing to", "demonstrating", "showcasing". Never end a sentence with a present participle clause added for effect ("-ing the trend toward X"). Never open a paragraph with a scene-setter that exists only to announce what you are about to say.
 
-Data:
-- Thesis being evaluated: ${params.userInput}
-- Consensus score: ${params.consensusState}
-- Deal count (last 30 days): ${params.count30d}
-- Deal count (last 90 days): ${params.count90d}
-- Media mentions (last 90 days): ${params.mediaCount90d}
-- Velocity ratio (deals/media): ${params.velocityRatio.toFixed(2)}x ${params.velocityRatio >= 1.5 ? '— accelerating' : params.velocityRatio < 0.7 ? '— decelerating' : '— stable'}
-  Interpretation:
-  - Above 2.0x: deals significantly outpacing coverage — early signal, name it as such
-  - 1.0x–2.0x: deal and media activity broadly in step
-  - Below 1.0x: narrative ahead of real capital deployment
-  - 0.0x–0.3x with deal count above 3: significant activity below public radar — treat this as your lead, not a footnote
-  - 0.0x with deal count below 3: thin data, say so explicitly
-- Buyer mix: Not available from current data sources
+DATA:
+- Thesis: ${params.userInput}
+- Signal: ${params.consensusState}
+- Deals last 30 days: ${params.count30d}
+- Deals last 90 days: ${params.count90d}
+- Media mentions last 90 days: ${params.mediaCount90d}
+- Velocity ratio: ${params.velocityRatio.toFixed(2)}x (deals per day ÷ media mentions per day)
+  What this ratio means:
+  - Above 2.0x: capital moving faster than coverage. Could be early positioning before the narrative forms, or simply deals too small to attract press.
+  - 1.0x-2.0x: deal activity and coverage broadly in step.
+  - Below 1.0x: coverage exceeding transactions. Could be a genuine narrative overhang, or a data gap where deals are closing quietly.
+  - Any ratio derived from fewer than 5 deals should be treated as directional, not conclusive.
+- Sector maturity: ${params.maturity} — ${params.maturityReason}
 ${dataContext}
 
 ${lowDataModeInstruction}
 
 Write exactly four paragraphs. No headers. No bullets. No preamble. No sign-off.
 
-Paragraph 1 — Observation (3-4 sentences):
-What does the data show? Describe the volume trend and whether activity is accelerating or decelerating. Reference specific numbers. Set the macro context for this sector and geography. What are the broader forces — regulatory, economic, consumer, or structural — that explain why capital is paying attention to this space right now? Ground this in the deal count and velocity data. This paragraph should make a reader who knows nothing about the sector understand why it matters at this moment.
+Paragraph 1 — What the data shows (3–4 sentences):
+State the numbers plainly: deal volume, trend direction, velocity ratio. Where the count is small, say so and note what that limits. Name the structural forces — regulatory, economic, consumer — that explain why this sector and geography are attracting attention at this moment, but qualify how much the current data supports each force versus how much is received wisdom. Do not interpret yet.
 
-Paragraph 2 — Contradiction (3-4 sentences):
-Now zoom into the data. What two things in this data cannot both be true at the same time? Look for: a large strategic acquisition alongside early-stage venture bets; deal velocity accelerating while the consensus score suggests the narrative is already formed; small tickets clustering alongside one outlier large deal; multiple buyer types active simultaneously with incompatible return horizons. Name specific companies and amounts where they sharpen the contradiction. If no real tension exists, say so directly and explain why the consistency itself is the signal.
+Paragraph 2 — What the pattern could mean (3–4 sentences):
+Now offer competing readings of the same data. If the velocity ratio is high, what are the two most plausible explanations — and what would distinguish between them? If the consensus score and the raw count pull in different directions, name the tension. If a pattern is present but the base is small, say the pattern is suggestive rather than established. Name specific deals or headlines from the data where they sharpen rather than decorate the analysis. Avoid forcing a contradiction where the data is genuinely consistent.
 
-Paragraph 3 — Why markets may be misreading this (3 sentences):
-What assumption does the consensus narrative make that this data challenges? What does the deal pattern reveal about where capital is actually moving versus where the public story says it is going? This is the paragraph where you say the thing most coverage won't.
+Paragraph 3 — What this data cannot tell you (2–3 sentences):
+Name the specific gaps: what buyer-type information is missing, what the absence of certain deal structures might mean, what a different data source would reveal or contradict. Do not speculate beyond the data — describe the boundary of what is knowable from these signals. If one commonly held assumption about this sector is not supported by what is here, name it plainly.
 
-Paragraph 4 — Conclusion (2 sentences):
-One concrete observation that follows from the data — not a recommendation, not a prediction. State what is true and let the reader decide what to do with it. Anchor it in the data, not in speculation about the future. This is the sentence someone forwards to a friend.
+Paragraph 4 — The sharpest narrow observation (2 sentences):
+One precise thing that is true based solely on this data — not an inference, not a recommendation. It should be specific enough that a different sector or geography would produce a different sentence. Nothing forward-looking. Nothing prescriptive.
 
-Return only the four paragraphs. No headers, no bullet points, no preamble.`
+Return only the four paragraphs. No headers, no bullets, no preamble.`
 
   let rawResponseText = ''
   try {
@@ -737,31 +741,34 @@ Return only the four paragraphs. No headers, no bullet points, no preamble.`
         ? `Media mentions (${params.mediaCount90d}) are running well ahead of confirmed transactions (${params.count90d}) — narrative interest has not yet translated into deal flow.`
         : `Deal count (${params.count90d}) and media mentions (${params.mediaCount90d}) are broadly in step — the thesis is as well-tracked as it is active.`
 
-    const signalDesc = {
-      'EARLY SIGNAL': `The EARLY SIGNAL score means deal activity is outpacing coverage — this thesis has not yet entered the mainstream narrative.`,
-      'CONSENSUS':    `The CONSENSUS score means this thesis is broadly known — most participants already see it, and pricing will reflect that.`,
-      'HYPE':         `The HYPE score means coverage is running ahead of capital — the narrative is ahead of the transactions.`,
-      'QUIET':        `The QUIET score means neither deal flow nor coverage is significant — this is either very early or not yet a real theme.`,
-      'ACTIVE':       `The ACTIVE score means deal flow is healthy for a mature category — competition for assets is real.`,
-      'ESTABLISHED':  `The ESTABLISHED score means this is a known, priced market — the edge comes from execution, not discovery.`,
-      'NARRATIVE':    `The NARRATIVE score means commentary is outpacing transactions in a mature category — stories are getting ahead of deals.`,
-      'COOLING':      `The COOLING score means activity is slowing — the theme had its run; the question is whether this is a pause or a peak.`,
-    }[params.consensusState] ?? `The ${params.consensusState} signal reflects current deal and media activity levels.`
+    const s = params.consensusState
+    const signalDesc =
+      s === 'EARLY SIGNAL' ? 'Deal activity is outpacing media coverage. One reading: capital is moving before the narrative has formed. Another: the deals are closing below the size threshold that attracts press.' :
+      s === 'CONSENSUS'    ? 'Deal flow and media coverage are broadly in step. The thesis is as well-tracked as it is active, which limits how much information advantage remains in the signal.' :
+      s === 'HYPE'         ? 'Media coverage is running ahead of confirmed transactions. That gap is consistent with a narrative overhang, though it could also reflect deals that have not yet been reported publicly.' :
+      s === 'QUIET'        ? 'Neither confirmed deal flow nor media coverage is significant. The data does not distinguish between a thesis that is too early and one that is not a real theme.' :
+      s === 'ACTIVE'       ? 'Deal flow is consistent with a healthy mature category. The question is whether activity reflects genuine asset availability or sellers taking advantage of favourable conditions.' :
+      s === 'ESTABLISHED'  ? 'This is a known, priced market with steady activity. The data does not surface a differentiated signal relative to prior periods.' :
+      s === 'NARRATIVE'    ? 'Commentary is outpacing confirmed transactions in a mature category. Whether that gap closes with deal flow or with a correction in sentiment is not determinable from this data.' :
+      s === 'COOLING'      ? 'Activity is below prior levels. The data is consistent with a cyclical pause, repricing, or genuine demand contraction -- the current window does not distinguish between them.' :
+      `The ${s} signal reflects the current ratio of deal activity to media coverage.`
 
-    // Only use English-looking titles in the fallback to avoid Korean/local-script bleed
     const englishTitles = (params.synthesisItems as { title: string }[])
-      .filter(i => /^[\x20-\x7E‘-”–—]+$/.test(i.title))
+      .filter(i => /^[\x20-\x7E]+$/.test(i.title))
       .slice(0, 2)
       .map(i => i.title)
     const evidenceLine = englishTitles.length > 0
-      ? `Recent coverage: ${englishTitles.join('; ')}.`
+      ? `Recent items include: ${englishTitles.join('; ')}.`
       : ''
 
+    const smallBase = params.count90d < 5 ? ' -- derived from a small base, treat directionally' : ''
+    const last30 = params.count30d > 0 ? `, with ${params.count30d} in the last 30 days` : ', with none in the last 30 days'
+
     return [
-      `${maturityDesc} ${params.count90d} deal-related items were tracked in the last 90 days, with ${params.count30d} in the most recent 30. Momentum is ${trendDesc}. Velocity ratio: ${velocityDesc}.`,
+      `${maturityDesc} ${params.count90d} deal-related items were tracked in the last 90 days, with ${params.count30d} in the most recent 30. Trend is ${trendDesc}. Velocity ratio: ${velocityDesc}.`,
       `${gapDesc}${evidenceLine ? ' ' + evidenceLine : ''}`,
-      `${signalDesc} The gap between deal count and media attention is the most informative number here — it is where the market is either ahead of the story or behind it.`,
-      `${params.count90d} tracked items over 90 days${params.count30d > 0 ? `, with ${params.count30d} in the last month` : ', with none in the last 30 days'}, in a ${params.maturity.toLowerCase()}-stage category against a ${params.consensusState} signal.`,
+      signalDesc,
+      `${params.count90d} tracked items over 90 days${last30}. Signal classification: ${s}${smallBase}.`,
     ].join('\n\n')
   }
 }
